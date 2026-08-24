@@ -19,33 +19,33 @@
     .line-card {
       user-select: none;
       -webkit-user-select: none;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
-    /* 1. 카드를 꾹 눌렀을 때 선택 효과 */
+    /* 1. 카드를 꾹 눌러 집어 올렸을 때 (기울기 없이 수평 유지 + 그림자만 살짝 뜸) */
     .sortable-chosen {
       cursor: grabbing !important;
       border-color: #6366f1 !important;
+      box-shadow: 0 14px 25px -5px rgba(0, 0, 0, 0.15) !important;
+      z-index: 50 !important;
     }
 
-    /* 2. 손가락을 따라 공중에 떠서 움직이는 카드 (iOS Fallback Layer) */
-    .sortable-fallback {
-      opacity: 0.98 !important;
-      transform: scale(1.05) rotate(1.5deg) !important;
-      box-shadow: 0 25px 40px -10px rgba(15, 23, 42, 0.3), 0 12px 20px -5px rgba(99, 102, 241, 0.25) !important;
+    /* 2. 드래그 중인 실제 카드 (수평 유지) */
+    .sortable-drag {
+      opacity: 1 !important;
+      background-color: #ffffff !important;
       border: 2px solid #6366f1 !important;
-      background: #ffffff !important;
       border-radius: 1.5rem !important;
-      pointer-events: none !important; /* 터치 이벤트 간섭 완벽 차단 */
-      z-index: 99999 !important;
+      box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.2) !important;
+      z-index: 9999 !important;
     }
 
-    /* 3. 원래 비어있는 자리 (고스트 슬롯) */
+    /* 3. 카드가 들어갈 자리 (명확한 점선 박스로 비켜줌) */
     .sortable-ghost {
-      opacity: 0.25 !important;
-      background: #e2e8f0 !important;
-      border: 2px dashed #94a3b8 !important;
+      opacity: 0.35 !important;
+      background-color: #e0e7ff !important;
+      border: 2px dashed #6366f1 !important;
       border-radius: 1.5rem !important;
-      transform: scale(0.98) !important;
       box-shadow: none !important;
     }
   </style>
@@ -698,20 +698,21 @@
       initSortable();
     }
 
+    // 안정적인 네이티브 터치 기반 정렬 엔진 초기화
     function initSortable() {
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         new Sortable(groupEl, {
           group: 'mvno-lines',
-          animation: 250,
-          delay: 150, // 0.15초 꾹 누르면 활성화
+          animation: 200,             // 부드러운 위치 스왑 시간
+          delay: 150,                 // 0.15초 롱프레스
           delayOnTouchOnly: true,
-          touchStartThreshold: 5,
-          forceFallback: true,        // ★ 모바일/웹 터치 드래그 강제 활성화
-          fallbackClass: 'sortable-fallback',
-          fallbackOnBody: true,       // ★ 화면 어디든 부드럽게 손가락을 따라다니도록 설정
-          fallbackTolerance: 3,
+          touchStartThreshold: 5,     // 미세 터치 흔들림 무시
+          scroll: true,               // 화면 끝에 도달 시 자연스러운 자동 스크롤
+          scrollSensitivity: 80,
+          scrollSpeed: 15,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
+          dragClass: 'sortable-drag',
           onStart: function () {
             if (navigator.vibrate) {
               navigator.vibrate(25);
