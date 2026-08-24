@@ -2,37 +2,59 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
   <title>알뜰폰 회선 매니저</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="MVNO-Man.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  
   <style>
-    /* 드래그 시 원래 자리 표시 스타일 */
-    .sortable-ghost {
-      opacity: 0.35 !important;
-      background: #eef2ff !important;
-      border: 2px dashed #6366f1 !important;
-      border-radius: 1.5rem !important;
-      box-shadow: none !important;
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
-    /* 손가락으로 잡고 끌고 다니는 떠있는 카드 스타일 */
-    .sortable-drag {
-      opacity: 0.98 !important;
-      transform: scale(1.04) rotate(1.5deg) !important;
-      box-shadow: 0 20px 30px -10px rgba(99, 102, 241, 0.35), 0 10px 15px -5px rgba(0, 0, 0, 0.1) !important;
-      border: 2px solid #6366f1 !important;
-      background-color: #ffffff !important;
-      z-index: 9999 !important;
+    
+    /* 기본 카드 인터랙션 트랜지션 */
+    .line-card {
+      touch-action: pan-y;
+      user-select: none;
+      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease, border-color 0.2s ease;
     }
+
+    /* 1. 카드를 꾹 눌러 집어 올렸을 때 (iOS Lift Effect) */
     .sortable-chosen {
       cursor: grabbing !important;
+      transform: scale(1.045) translateY(-4px) !important;
+      box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.18), 0 10px 15px -4px rgba(99, 102, 241, 0.15) !important;
+      border-color: rgba(99, 102, 241, 0.7) !important;
+      z-index: 50 !important;
+    }
+
+    /* 2. 손가락을 따라 공중에 떠서 움직이는 카드 (Floating Dragged Card) */
+    .sortable-drag {
+      opacity: 0.98 !important;
+      transform: scale(1.06) rotate(1.2deg) translateY(-8px) !important;
+      box-shadow: 0 30px 45px -12px rgba(15, 23, 42, 0.28), 0 18px 25px -8px rgba(99, 102, 241, 0.22) !important;
+      border: 1.5px solid #6366f1 !important;
+      background: rgba(255, 255, 255, 0.96) !important;
+      backdrop-filter: blur(12px) !important;
+      z-index: 99999 !important;
+    }
+
+    /* 3. 카드가 빠져나간 원래 빈 자리 표시 */
+    .sortable-ghost {
+      opacity: 0.25 !important;
+      background: #e2e8f0 !important;
+      border: 2px dashed #94a3b8 !important;
+      border-radius: 1.5rem !important;
+      transform: scale(0.98) !important;
+      box-shadow: none !important;
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans pb-20 select-none antialiased">
+<body class="bg-slate-50 text-slate-800 font-sans pb-24 select-none antialiased">
 
   <!-- 헤더 -->
   <header class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-4 shadow-lg sticky top-0 z-40">
@@ -91,7 +113,7 @@
       </button>
     </div>
 
-    <!-- 상단 상태 요약 바 (고급스러운 컬러 뱃지 및 조건부 깜빡임 적용) -->
+    <!-- 상단 상태 요약 바 -->
     <div class="grid grid-cols-2 gap-3">
       <!-- 30일 이내 만료 버튼 -->
       <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/15 border border-amber-300/60 rounded-2xl p-3.5 shadow-sm hover:shadow-md hover:border-amber-400 transition active:scale-98 relative overflow-hidden group">
@@ -295,7 +317,7 @@
           </div>
         </div>
 
-        <!-- 개선된 할인 요금 입력란 ('원' 간섭 없이 숫자만 자유롭게 입력/삭제) -->
+        <!-- 할인 요금 입력란 -->
         <div>
           <label class="block font-medium text-slate-600 mb-1">현재 할인 요금</label>
           <div class="relative">
@@ -378,7 +400,6 @@
       { id: 5, owner: '박소연', name: '4. MSJ', phone: '010-0000-0005', type: 'USIM', carrier: '스노우맨 (KT망)', data: '1.5GB', call: '50분', sms: '50건', startDate: '2026-05-10', duration: '6', endDate: '2026-11-10', fee: '0원' }
     ];
 
-    // 단위 자동 추가 함수
     function formatDataInput(el) {
       let val = el.value.trim();
       if (/^\d+(\.\d+)?$/.test(val)) {
@@ -400,7 +421,6 @@
       }
     }
 
-    // 할인 요금: '원' 없이 숫자만 자유롭게 입력하고 콤마만 실시간 포맷
     function formatFeeClean(el) {
       let val = el.value.replace(/[^0-9]/g, '');
       if (val === '') {
@@ -515,7 +535,6 @@
       document.getElementById('count-30').innerText = `${count30}건`;
       document.getElementById('count-7').innerText = `${count7}건`;
 
-      // 1건 이상일 때만 깜빡이도록 점(Dot) 스타일 동적 변경
       const dot30 = document.getElementById('dot-30');
       if (count30 > 0) {
         dot30.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-400';
@@ -625,7 +644,7 @@
 
           const card = document.createElement('div');
           card.dataset.id = line.id;
-          card.className = `bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab active:cursor-grabbing transition-all`;
+          card.className = `line-card bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab active:cursor-grabbing`;
           card.innerHTML = `
             <div class="flex justify-between items-start mb-2.5">
               <div>
@@ -687,15 +706,19 @@
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         new Sortable(groupEl, {
           group: 'mvno-lines',
-          animation: 250,
-          delay: 150,
+          animation: 300, // iOS 스타일 부드러운 위치 전환 시간
+          easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+          delay: 180, // 아이폰 롱프레스 반응 속도
           delayOnTouchOnly: true,
-          touchStartThreshold: 5,
+          touchStartThreshold: 3,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
           dragClass: 'sortable-drag',
           onStart: function () {
-            if (navigator.vibrate) navigator.vibrate(30);
+            // iOS 스타일 햅틱 진동
+            if (navigator.vibrate) {
+              navigator.vibrate([18, 12, 18]);
+            }
           },
           onEnd: function () {
             const allLines = loadData();
@@ -788,7 +811,6 @@
       if (data.duration) document.getElementById('form-duration').value = data.duration;
       if (data.endDate) document.getElementById('form-end-date').value = data.endDate;
       
-      // '원'을 떼어내고 숫자만 콤마 형식으로 채움
       const feeInput = document.getElementById('form-fee');
       if (data.fee) {
         const rawNum = data.fee.replace(/[^0-9]/g, '');
@@ -837,7 +859,6 @@
       const carrierNet = document.getElementById('form-carrier-net').value;
       const combinedCarrier = carrierName ? `${carrierName} (${carrierNet})` : carrierNet;
 
-      // 저장할 때 '원'을 붙여서 데이터에 보관
       const rawFee = document.getElementById('form-fee').value.replace(/[^0-9]/g, '');
       const finalFee = (rawFee === '' ? '0' : Number(rawFee).toLocaleString('ko-KR')) + '원';
 
