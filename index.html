@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- BUILD: 2026-08-24 MOBILE-DRAG-V6-HANDLE -->
+<!-- BUILD: 2026-08-24 MOBILE-DRAG-V7-FULLCARD-JSON-SHARE -->
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -36,19 +36,15 @@
     }
 
     /*
-      드래그 손잡이 전용 터치 영역.
-      여기만 touch-action:none 을 줘서, 손잡이를 꾹 누르는 제스처가
-      브라우저의 기본 세로 스크롤(pan-y)에 선점당하지 않도록 한다.
-      (카드 전체에 touch-action:none 을 주면 드래그는 되지만
-       카드 위에서의 일반 스와이프 스크롤이 막혀버리기 때문에
-       반드시 손잡이 요소에만 한정한다.)
+      카드 전체 롱프레스 드래그 버전.
+      평상시에는 pan-y를 유지해 카드 위에서도 세로 스크롤이 가능하고,
+      SortableJS가 롱프레스(320ms)를 인식한 뒤 카드 전체를 드래그 대상으로 사용한다.
+      수정 버튼 등 실제 조작 요소는 filter에서 제외한다.
     */
-    .drag-handle {
-      touch-action: none;
-      -webkit-touch-callout: none;
+    .line-card {
       cursor: grab;
     }
-    .sortable-chosen .drag-handle {
+    .sortable-chosen {
       cursor: grabbing;
     }
 
@@ -112,6 +108,7 @@
 
     body.is-sorting .line-card {
       -webkit-touch-callout: none !important;
+      cursor: grabbing !important;
     }
   </style>
 </head>
@@ -177,33 +174,33 @@
     <!-- 상단 상태 요약 바 -->
     <div class="grid grid-cols-2 gap-3">
       <!-- 30일 이내 만료 버튼 -->
-      <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-amber-200/80 bg-gradient-to-br from-[#FFF9ED] via-[#FFF3E2] to-[#FFE8CC]">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.88),transparent_44%)] pointer-events-none"></div>
+      <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-indigo-200/80 bg-gradient-to-br from-[#F7F9FF] via-[#EEF2FF] to-[#E4E9FF]">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.92),transparent_46%)] pointer-events-none"></div>
         <div class="relative flex justify-between items-center">
-          <p class="text-[11px] font-extrabold text-amber-950 flex items-center gap-1.5 tracking-tight">
+          <p class="text-[11px] font-extrabold text-indigo-950 flex items-center gap-1.5 tracking-tight">
             <span id="dot-30" class="w-2 h-2 rounded-full bg-slate-300"></span>
             30일 이내 만료
           </p>
-          <i class="fa-solid fa-angle-right text-xs text-amber-500 group-hover:translate-x-0.5 transition"></i>
+          <i class="fa-solid fa-angle-right text-xs text-indigo-400 group-hover:translate-x-0.5 transition"></i>
         </div>
-        <p id="count-30" class="relative text-[34px] leading-none font-black text-[#C56A00] mt-2">0건</p>
-        <span id="filter-indicator-30" class="hidden relative text-[9px] font-bold text-amber-900 bg-white/80 border border-amber-200 px-2 py-0.5 rounded-full mt-2 inline-block">필터 적용 중</span>
+        <p id="count-30" class="relative text-[28px] leading-none font-black text-[#4F5FC7] mt-2">0건</p>
+        <span id="filter-indicator-30" class="hidden relative text-[9px] font-bold text-indigo-800 bg-white/80 border border-indigo-200 px-2 py-0.5 rounded-full mt-2 inline-block">필터 적용 중</span>
       </button>
 
       <!-- 7일 이내 만료 버튼 -->
-      <button id="btn-filter-7" onclick="toggleFilter('7')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-rose-200/85 bg-gradient-to-br from-[#FFF6F8] via-[#FFECEF] to-[#FFDDE6]">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.9),transparent_44%)] pointer-events-none"></div>
+      <button id="btn-filter-7" onclick="toggleFilter('7')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-violet-200/85 bg-gradient-to-br from-[#FBF9FF] via-[#F4F0FF] to-[#ECE5FF]">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.92),transparent_46%)] pointer-events-none"></div>
         <div class="relative flex justify-between items-center">
-          <p class="text-[11px] font-extrabold text-rose-950 flex items-center gap-1.5 tracking-tight">
+          <p class="text-[11px] font-extrabold text-violet-950 flex items-center gap-1.5 tracking-tight">
             <span id="dot-7-container">
               <span id="dot-7" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>
             </span>
             7일 이내 만료
           </p>
-          <i class="fa-solid fa-angle-right text-xs text-rose-500 group-hover:translate-x-0.5 transition"></i>
+          <i class="fa-solid fa-angle-right text-xs text-violet-400 group-hover:translate-x-0.5 transition"></i>
         </div>
-        <p id="count-7" class="relative text-[34px] leading-none font-black text-[#D61F57] mt-2">0건</p>
-        <span id="filter-indicator-7" class="hidden relative text-[9px] font-bold text-rose-900 bg-white/80 border border-rose-200 px-2 py-0.5 rounded-full mt-2 inline-block">초임박 필터 중</span>
+        <p id="count-7" class="relative text-[28px] leading-none font-black text-[#7657C8] mt-2">0건</p>
+        <span id="filter-indicator-7" class="hidden relative text-[9px] font-bold text-violet-800 bg-white/80 border border-violet-200 px-2 py-0.5 rounded-full mt-2 inline-block">초임박 필터 중</span>
       </button>
     </div>
 
@@ -415,7 +412,7 @@
         <button onclick="sendEmailBackup()" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-2xl text-xs font-bold shadow-sm hover:opacity-95 transition flex flex-col items-center justify-center gap-1 active:scale-98">
           <i class="fa-solid fa-envelope text-base"></i>
           <span>이메일 전송</span>
-          <span class="text-[9px] text-emerald-100 font-normal">dong8279@naver.com</span>
+          <span class="text-[9px] text-emerald-100 font-normal">.json 파일 첨부하여 공유</span>
         </button>
 
         <button onclick="downloadBackupFile()" class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-3 rounded-2xl text-xs font-bold shadow-sm hover:opacity-95 transition flex flex-col items-center justify-center gap-1 active:scale-98">
@@ -600,7 +597,7 @@
 
       const dot30 = document.getElementById('dot-30');
       if (count30 > 0) {
-        dot30.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_0_4px_rgba(251,191,36,0.18)]';
+        dot30.className = 'w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_0_4px_rgba(99,102,241,0.16)]';
       } else {
         dot30.className = 'w-2 h-2 rounded-full bg-slate-300';
       }
@@ -609,8 +606,8 @@
       if (count7 > 0) {
         dot7Container.innerHTML = `
           <span class="relative flex h-2.5 w-2.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-60"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-[0_0_0_4px_rgba(244,63,94,0.14)]"></span>
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-55"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-600 shadow-[0_0_0_4px_rgba(124,58,237,0.14)]"></span>
           </span>
         `;
       } else {
@@ -677,7 +674,7 @@
               <span class="w-2.5 h-2.5 rounded-full ${owner.includes('우민준') ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-pink-500 shadow-sm shadow-pink-200'}"></span>
               <h2 class="font-extrabold text-slate-700 text-sm tracking-tight">명의자: ${owner} (${items.length}회선)</h2>
             </div>
-            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-solid fa-grip-vertical mr-1"></i>손잡이를 꾹 눌러 순서 변경</span>
+            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-hand-pointer mr-1"></i>카드를 꾹 눌러 순서 변경</span>
           </div>
         `;
 
@@ -725,9 +722,6 @@
                   ${ddayBadge}
                   <p class="text-[10px] text-slate-400 mt-1 font-medium"><i class="fa-regular fa-calendar-xmark"></i> ${line.endDate} 마감</p>
                 </div>
-                <div class="drag-handle shrink-0 w-8 h-8 -mt-1 -mr-1 rounded-xl flex items-center justify-center text-slate-300 active:bg-slate-100 active:text-slate-500 transition">
-                  <i class="fa-solid fa-grip-vertical text-sm"></i>
-                </div>
               </div>
             </div>
 
@@ -771,8 +765,8 @@
     }
 
     // ------------------------------------------------------------
-    // MOBILE-DRAG-V5
-    // SortableJS의 검증된 터치 드래그 + iOS 느낌의 수평 리프트 효과
+    // MOBILE-DRAG-V7-FULLCARD
+    // 카드 전체 롱프레스 드래그 + iOS 느낌의 수평 리프트 효과
     // ------------------------------------------------------------
     let sortableInstances = [];
 
@@ -787,8 +781,6 @@
         const instance = new Sortable(groupEl, {
           group: 'mvno-lines',
           draggable: '.line-card',
-          handle: '.drag-handle',
-
           /*
             모바일/WebView에서도 HTML5 네이티브 DnD 대신
             SortableJS의 터치 fallback을 강제로 사용.
@@ -799,11 +791,11 @@
           fallbackTolerance: 4,
 
           /*
-            240ms 꾹 누른 뒤 시작.
-            터치 중 미세 떨림 때문에 롱프레스가 취소되지 않도록
-            Samsung/Android 계열을 고려해 threshold를 여유 있게 둠.
+            카드 전체에서 320ms 꾹 누른 뒤 시작.
+            짧은 터치/스크롤과 드래그가 헷갈리지 않도록 손잡이 버전보다
+            롱프레스 시간을 조금 더 길게 둔다.
           */
-          delay: 240,
+          delay: 320,
           delayOnTouchOnly: true,
           touchStartThreshold: 8,
 
@@ -1223,24 +1215,51 @@ JSON 출력 포맷:
       document.getElementById('json-modal').classList.add('hidden');
     }
 
-    function sendEmailBackup() {
+    async function sendEmailBackup() {
       const lines = loadData();
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
       const dataStr = JSON.stringify(lines, null, 2);
+      const fileName = `mvno_backup_${dateStr}.json`;
 
-      let summaryText = lines.map((l, i) => `${i+1}. [${l.owner}] ${l.name} (${l.carrier}) - 만료일: ${l.endDate} / 요금: ${l.fee}`).join('\n');
+      // Web Share API가 파일 공유를 지원하면 실제 .json 파일을 첨부한 상태로
+      // Android/iOS 공유창을 열어 메일 앱을 선택할 수 있게 한다.
+      const backupFile = new File([dataStr], fileName, { type: 'application/json' });
+      const shareData = {
+        title: `[알뜰폰 회선 매니저] 백업 데이터 (${dateStr})`,
+        text: `알뜰폰 회선 매니저 백업 파일입니다.\n받는 사람: dong8279@naver.com`,
+        files: [backupFile]
+      };
+
+      try {
+        const canShareFiles = !!navigator.share &&
+          (!navigator.canShare || navigator.canShare({ files: [backupFile] }));
+
+        if (canShareFiles) {
+          await navigator.share(shareData);
+          return;
+        }
+      } catch (err) {
+        // 사용자가 공유창을 닫은 경우에는 추가 동작을 하지 않는다.
+        if (err && err.name === 'AbortError') return;
+        console.warn('파일 공유를 사용할 수 없어 대체 방식으로 전환합니다.', err);
+      }
+
+      /*
+        mailto: 링크는 브라우저 보안 정책상 생성한 파일을 자동 첨부할 수 없다.
+        공유 API가 없는 PC 브라우저에서는 JSON을 먼저 다운로드하고,
+        받는 사람/제목이 입력된 메일 작성창을 연다.
+      */
+      downloadBackupFile();
 
       const subject = encodeURIComponent(`[알뜰폰 회선 매니저] 백업 데이터 (${dateStr})`);
       const body = encodeURIComponent(
-        `알뜰폰 회선 매니저 데이터 백업 파일입니다.\n\n` +
-        `[회선 요약 목록]\n${summaryText}\n\n` +
-        `-----------------------------------------\n` +
-        `[복원용 JSON 데이터 코드]\n` +
-        `아래 JSON 코드를 복사하여 앱의 [백업] -> [데이터 적용]에 넣으시면 복원됩니다:\n\n` +
-        `${dataStr}`
+        `알뜰폰 회선 매니저 백업 파일(${fileName})을 첨부해 주세요.\n\n` +
+        `브라우저에서 JSON 파일을 먼저 다운로드했습니다.\n` +
+        `다운로드된 ${fileName} 파일을 이 메일에 첨부하면 됩니다.`
       );
 
+      alert('이 브라우저는 파일을 메일에 자동 첨부할 수 없어 JSON 파일을 먼저 저장합니다. 이어서 열리는 메일에 다운로드된 .json 파일을 첨부해 주세요.');
       window.location.href = `mailto:dong8279@naver.com?subject=${subject}&body=${body}`;
     }
 
