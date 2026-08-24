@@ -16,34 +16,30 @@
       -webkit-touch-callout: none;
     }
     
-    /* 기본 카드 인터랙션 트랜지션 */
     .line-card {
-      touch-action: pan-y;
       user-select: none;
-      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease, border-color 0.2s ease;
+      -webkit-user-select: none;
     }
 
-    /* 1. 카드를 꾹 눌러 집어 올렸을 때 (iOS Lift Effect) */
+    /* 1. 카드를 꾹 눌렀을 때 선택 효과 */
     .sortable-chosen {
       cursor: grabbing !important;
-      transform: scale(1.045) translateY(-4px) !important;
-      box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.18), 0 10px 15px -4px rgba(99, 102, 241, 0.15) !important;
-      border-color: rgba(99, 102, 241, 0.7) !important;
-      z-index: 50 !important;
+      border-color: #6366f1 !important;
     }
 
-    /* 2. 손가락을 따라 공중에 떠서 움직이는 카드 (Floating Dragged Card) */
-    .sortable-drag {
+    /* 2. 손가락을 따라 공중에 떠서 움직이는 카드 (iOS Fallback Layer) */
+    .sortable-fallback {
       opacity: 0.98 !important;
-      transform: scale(1.06) rotate(1.2deg) translateY(-8px) !important;
-      box-shadow: 0 30px 45px -12px rgba(15, 23, 42, 0.28), 0 18px 25px -8px rgba(99, 102, 241, 0.22) !important;
-      border: 1.5px solid #6366f1 !important;
-      background: rgba(255, 255, 255, 0.96) !important;
-      backdrop-filter: blur(12px) !important;
+      transform: scale(1.05) rotate(1.5deg) !important;
+      box-shadow: 0 25px 40px -10px rgba(15, 23, 42, 0.3), 0 12px 20px -5px rgba(99, 102, 241, 0.25) !important;
+      border: 2px solid #6366f1 !important;
+      background: #ffffff !important;
+      border-radius: 1.5rem !important;
+      pointer-events: none !important; /* 터치 이벤트 간섭 완벽 차단 */
       z-index: 99999 !important;
     }
 
-    /* 3. 카드가 빠져나간 원래 빈 자리 표시 */
+    /* 3. 원래 비어있는 자리 (고스트 슬롯) */
     .sortable-ghost {
       opacity: 0.25 !important;
       background: #e2e8f0 !important;
@@ -644,7 +640,7 @@
 
           const card = document.createElement('div');
           card.dataset.id = line.id;
-          card.className = `line-card bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab active:cursor-grabbing`;
+          card.className = `line-card bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab`;
           card.innerHTML = `
             <div class="flex justify-between items-start mb-2.5">
               <div>
@@ -706,18 +702,19 @@
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         new Sortable(groupEl, {
           group: 'mvno-lines',
-          animation: 300, // iOS 스타일 부드러운 위치 전환 시간
-          easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
-          delay: 180, // 아이폰 롱프레스 반응 속도
+          animation: 250,
+          delay: 150, // 0.15초 꾹 누르면 활성화
           delayOnTouchOnly: true,
-          touchStartThreshold: 3,
+          touchStartThreshold: 5,
+          forceFallback: true,        // ★ 모바일/웹 터치 드래그 강제 활성화
+          fallbackClass: 'sortable-fallback',
+          fallbackOnBody: true,       // ★ 화면 어디든 부드럽게 손가락을 따라다니도록 설정
+          fallbackTolerance: 3,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
-          dragClass: 'sortable-drag',
           onStart: function () {
-            // iOS 스타일 햅틱 진동
             if (navigator.vibrate) {
-              navigator.vibrate([18, 12, 18]);
+              navigator.vibrate(25);
             }
           },
           onEnd: function () {
