@@ -1,14 +1,17 @@
 <!DOCTYPE html>
+<!-- BUILD: 2026-08-24 MOBILE-DRAG-V4 -->
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>알뜰폰 회선 매니저</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="MVNO-Man.png">
+  <link rel="manifest" href="manifest.json?v=20260824-4">
+  <link rel="apple-touch-icon" href="MVNO-Man.png?v=20260824-4">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   
   <style>
     * {
@@ -24,69 +27,56 @@
       transform-origin: center center;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-      will-change: box-shadow, scale;
       transition:
         box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
         border-color 0.18s ease,
-        scale 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    /* 롱프레스가 인식된 순간: 제자리에서 수평으로 살짝 떠오름 */
-    .sortable-chosen {
-      cursor: grabbing !important;
-      scale: 1.015 !important;
-      rotate: 0deg !important;
-      border-color: #818cf8 !important;
-      box-shadow:
-        0 10px 22px rgba(15, 23, 42, 0.12),
-        0 2px 6px rgba(15, 23, 42, 0.06) !important;
-      z-index: 50 !important;
+        opacity 0.16s ease;
     }
 
     /*
-      forceFallback 모드에서 손가락을 실제로 따라다니는 복제 카드.
-      중요: transform은 SortableJS가 위치 이동에 사용하므로 건드리지 않는다.
-      확대는 transform 대신 scale 속성으로 처리한다.
+      실제 휴대폰 터치 전용 드래그.
+      SortableJS의 네이티브/폴백 드래그를 쓰지 않고
+      화면 위에 카드 복제본을 직접 띄워 손가락을 따라 이동시킨다.
     */
-    .sortable-fallback {
-      opacity: 1 !important;
-      scale: 1.025 !important;
-      rotate: 0deg !important;
+    .drag-lifted-card {
+      position: fixed !important;
+      margin: 0 !important;
+      pointer-events: none !important;
+      z-index: 999999 !important;
+      transform-origin: center center !important;
       background: #ffffff !important;
-      border: 1.5px solid #818cf8 !important;
+      border: 1.5px solid rgba(99, 102, 241, 0.72) !important;
       border-radius: 1.5rem !important;
       box-shadow:
-        0 22px 45px rgba(15, 23, 42, 0.20),
-        0 6px 14px rgba(15, 23, 42, 0.10) !important;
-      pointer-events: none !important;
-      z-index: 99999 !important;
-
-      /* 손가락을 따라갈 때 끌리는 느낌이 생기지 않도록 */
-      transition: none !important;
+        0 24px 48px rgba(15, 23, 42, 0.22),
+        0 8px 18px rgba(15, 23, 42, 0.10) !important;
+      will-change: transform;
+      transition:
+        box-shadow 0.16s ease,
+        border-color 0.16s ease !important;
     }
 
-    /* 일부 환경에서 dragClass가 붙어도 절대 기울지 않게 */
-    .sortable-drag {
-      rotate: 0deg !important;
-      cursor: grabbing !important;
-    }
-
-    /* 원래 카드가 있던 자리: 카드 모양은 유지하되 희미하게 */
-    .sortable-ghost {
+    /* 원래 카드가 있던 자리 */
+    .drag-placeholder-card {
       opacity: 0.16 !important;
-      scale: 0.985 !important;
-      rotate: 0deg !important;
       background: #eef2f7 !important;
       border: 1.5px dashed #94a3b8 !important;
-      border-radius: 1.5rem !important;
       box-shadow: none !important;
     }
 
-    /* 드래그 중 텍스트 선택/브라우저 롱프레스 메뉴 방지 */
-    body.is-sorting {
+    .drag-placeholder-card > * {
+      visibility: hidden !important;
+    }
+
+    body.is-card-dragging {
       user-select: none !important;
       -webkit-user-select: none !important;
-      overscroll-behavior: contain;
+      overscroll-behavior: none;
+      cursor: grabbing !important;
+    }
+
+    body.is-card-dragging * {
+      -webkit-touch-callout: none !important;
     }
   </style>
 </head>
@@ -740,79 +730,343 @@
       initSortable();
     }
 
-    // iPhone처럼: 롱프레스 → 카드가 수평으로 살짝 뜸 → 손가락을 따라 이동
+    // ------------------------------------------------------------
+    // 휴대폰 전용 iPhone 스타일 롱프레스 드래그 엔진
+    // - SortableJS 사용 안 함
+    // - 230ms 롱프레스
+    // - 카드 절대 회전 없음
+    // - 복제 카드를 화면 위에 띄워 손가락을 정확히 따라가게 함
+    // ------------------------------------------------------------
+    const dragEngine = {
+      bound: false,
+      card: null,
+      clone: null,
+      timer: null,
+      dragging: false,
+      inputType: null,
+      touchId: null,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      startRect: null,
+      raf: null,
+      suppressClickUntil: 0
+    };
+
     function initSortable() {
-      document.querySelectorAll('.sortable-group').forEach(groupEl => {
-        new Sortable(groupEl, {
-          group: 'mvno-lines',
+      if (dragEngine.bound) return;
+      dragEngine.bound = true;
 
-          // APK/WebView에서도 브라우저 네이티브 드래그 이미지를 쓰지 않도록 강제
-          forceFallback: true,
-          fallbackOnBody: true,
-          fallbackClass: 'sortable-fallback',
-          fallbackTolerance: 4,
+      const root = document.getElementById('lines-container');
 
-          // 롱프레스
-          delay: 240,
-          delayOnTouchOnly: true,
-          touchStartThreshold: 8,
+      root.addEventListener('touchstart', handleDragTouchStart, { passive: true });
+      document.addEventListener('touchmove', handleDragTouchMove, { passive: false });
+      document.addEventListener('touchend', handleDragTouchEnd, { passive: false });
+      document.addEventListener('touchcancel', handleDragTouchEnd, { passive: false });
 
-          // 카드 재배치 애니메이션
-          animation: 180,
-          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          direction: 'vertical',
-          swapThreshold: 0.55,
-          invertSwap: false,
+      root.addEventListener('mousedown', handleDragMouseDown);
+      document.addEventListener('mousemove', handleDragMouseMove);
+      document.addEventListener('mouseup', handleDragMouseUp);
 
-          // 세로 스크롤
-          scroll: true,
-          scrollSensitivity: 70,
-          scrollSpeed: 10,
+      // 드래그 직후 손가락을 뗐을 때 내부 수정버튼 등이 눌리는 것을 방지
+      root.addEventListener('click', function(e) {
+        if (Date.now() < dragEngine.suppressClickUntil) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    }
 
-          ghostClass: 'sortable-ghost',
-          chosenClass: 'sortable-chosen',
-          dragClass: 'sortable-drag',
+    function isDragBlockedTarget(target) {
+      return !!target.closest('button, input, select, textarea, a, label');
+    }
 
-          // 수정 버튼을 누를 때는 드래그 시작 금지
-          filter: 'button, input, select, textarea, a, label',
-          preventOnFilter: false,
+    function handleDragTouchStart(e) {
+      if (e.touches.length !== 1 || isDragBlockedTarget(e.target)) return;
 
-          onChoose: function () {
-            document.body.classList.add('is-sorting');
-          },
+      const card = e.target.closest('.line-card');
+      if (!card) return;
 
-          onStart: function () {
-            if (navigator.vibrate) navigator.vibrate(18);
-          },
+      const touch = e.touches[0];
+      beginPotentialDrag(card, touch.clientX, touch.clientY, 'touch', touch.identifier);
+    }
 
-          onEnd: function () {
-            document.body.classList.remove('is-sorting');
+    function handleDragTouchMove(e) {
+      if (!dragEngine.card || dragEngine.inputType !== 'touch') return;
 
-            const allLines = loadData();
-            const reordered = [];
+      const touch = Array.from(e.touches).find(t => t.identifier === dragEngine.touchId);
+      if (!touch) return;
 
-            document.querySelectorAll('.sortable-group').forEach(gEl => {
-              const currentOwner = gEl.dataset.owner;
+      const dx = touch.clientX - dragEngine.startX;
+      const dy = touch.clientY - dragEngine.startY;
 
-              gEl.querySelectorAll('[data-id]').forEach(cardEl => {
-                const lineId = parseInt(cardEl.dataset.id);
-                const found = allLines.find(l => l.id === lineId);
+      // 롱프레스가 되기 전에 손가락을 움직이면 일반 스크롤로 처리
+      if (!dragEngine.dragging) {
+        if (Math.hypot(dx, dy) > 10) cancelPotentialDrag();
+        return;
+      }
 
-                if (found) {
-                  found.owner = currentOwner;
-                  reordered.push(found);
-                }
-              });
-            });
+      e.preventDefault();
+      moveActiveDrag(touch.clientX, touch.clientY);
+    }
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
-          },
+    function handleDragTouchEnd(e) {
+      if (!dragEngine.card || dragEngine.inputType !== 'touch') return;
+      if (dragEngine.dragging) e.preventDefault();
+      finishOrCancelDrag();
+    }
 
-          onUnchoose: function () {
-            document.body.classList.remove('is-sorting');
+    function handleDragMouseDown(e) {
+      if (e.button !== 0 || isDragBlockedTarget(e.target)) return;
+
+      const card = e.target.closest('.line-card');
+      if (!card) return;
+
+      e.preventDefault();
+      beginPotentialDrag(card, e.clientX, e.clientY, 'mouse', null);
+    }
+
+    function handleDragMouseMove(e) {
+      if (!dragEngine.card || dragEngine.inputType !== 'mouse') return;
+
+      const dx = e.clientX - dragEngine.startX;
+      const dy = e.clientY - dragEngine.startY;
+
+      if (!dragEngine.dragging) {
+        if (Math.hypot(dx, dy) > 8) cancelPotentialDrag();
+        return;
+      }
+
+      e.preventDefault();
+      moveActiveDrag(e.clientX, e.clientY);
+    }
+
+    function handleDragMouseUp() {
+      if (!dragEngine.card || dragEngine.inputType !== 'mouse') return;
+      finishOrCancelDrag();
+    }
+
+    function beginPotentialDrag(card, x, y, inputType, touchId) {
+      cancelPotentialDrag();
+
+      dragEngine.card = card;
+      dragEngine.inputType = inputType;
+      dragEngine.touchId = touchId;
+      dragEngine.startX = x;
+      dragEngine.startY = y;
+      dragEngine.currentX = x;
+      dragEngine.currentY = y;
+      dragEngine.dragging = false;
+
+      // iOS처럼 '꾹 누른 뒤' 뜨도록 약간의 지연
+      dragEngine.timer = setTimeout(() => {
+        activateDrag();
+      }, 230);
+    }
+
+    function cancelPotentialDrag() {
+      if (dragEngine.timer) {
+        clearTimeout(dragEngine.timer);
+        dragEngine.timer = null;
+      }
+
+      if (!dragEngine.dragging) {
+        dragEngine.card = null;
+        dragEngine.inputType = null;
+        dragEngine.touchId = null;
+      }
+    }
+
+    function activateDrag() {
+      const card = dragEngine.card;
+      if (!card) return;
+
+      dragEngine.timer = null;
+      dragEngine.dragging = true;
+      dragEngine.startRect = card.getBoundingClientRect();
+
+      const clone = card.cloneNode(true);
+      clone.classList.remove('drag-placeholder-card');
+      clone.classList.add('drag-lifted-card');
+
+      clone.style.left = dragEngine.startRect.left + 'px';
+      clone.style.top = dragEngine.startRect.top + 'px';
+      clone.style.width = dragEngine.startRect.width + 'px';
+      clone.style.height = dragEngine.startRect.height + 'px';
+
+      // 처음 뜨는 순간: 수평을 유지한 채 2.5% 확대
+      clone.style.transform = 'translate3d(0, -2px, 0) scale(1.025) rotate(0deg)';
+
+      card.classList.add('drag-placeholder-card');
+      document.body.appendChild(clone);
+
+      dragEngine.clone = clone;
+      document.body.classList.add('is-card-dragging');
+
+      if (navigator.vibrate) navigator.vibrate(18);
+    }
+
+    function moveActiveDrag(x, y) {
+      if (!dragEngine.dragging || !dragEngine.clone) return;
+
+      dragEngine.currentX = x;
+      dragEngine.currentY = y;
+
+      if (!dragEngine.raf) {
+        dragEngine.raf = requestAnimationFrame(updateDragFrame);
+      }
+    }
+
+    function updateDragFrame() {
+      dragEngine.raf = null;
+      if (!dragEngine.dragging || !dragEngine.clone || !dragEngine.card) return;
+
+      const dx = dragEngine.currentX - dragEngine.startX;
+      const dy = dragEngine.currentY - dragEngine.startY;
+
+      // 이동 + 확대만 적용. 회전값은 항상 0deg.
+      dragEngine.clone.style.transform =
+        `translate3d(${dx}px, ${dy - 2}px, 0) scale(1.025) rotate(0deg)`;
+
+      reorderPlaceholderAtPoint(dragEngine.currentX, dragEngine.currentY);
+      handleDragAutoScroll(dragEngine.currentY);
+    }
+
+    function reorderPlaceholderAtPoint(x, y) {
+      const card = dragEngine.card;
+      if (!card) return;
+
+      const el = document.elementFromPoint(x, y);
+      if (!el) return;
+
+      const targetCard = el.closest('.line-card');
+      const targetGroup = el.closest('.sortable-group');
+
+      if (targetCard && targetCard !== card) {
+        const group = targetCard.closest('.sortable-group');
+        if (!group) return;
+
+        const rect = targetCard.getBoundingClientRect();
+        const before = y < rect.top + rect.height / 2;
+
+        if (before) {
+          group.insertBefore(card, targetCard);
+        } else {
+          group.insertBefore(card, targetCard.nextSibling);
+        }
+        return;
+      }
+
+      // 카드 사이의 빈 공간이나 그룹 하단으로 이동했을 때
+      if (targetGroup && targetCard !== card) {
+        const cards = Array.from(targetGroup.querySelectorAll('.line-card'))
+          .filter(c => c !== card);
+
+        if (cards.length === 0) {
+          targetGroup.appendChild(card);
+        } else {
+          const last = cards[cards.length - 1];
+          const r = last.getBoundingClientRect();
+          if (y > r.bottom) targetGroup.appendChild(card);
+        }
+      }
+    }
+
+    function handleDragAutoScroll(y) {
+      const edge = 86;
+      const speed = 12;
+
+      if (y < edge) {
+        window.scrollBy(0, -speed);
+      } else if (y > window.innerHeight - edge) {
+        window.scrollBy(0, speed);
+      }
+    }
+
+    function finishOrCancelDrag() {
+      if (dragEngine.timer) {
+        clearTimeout(dragEngine.timer);
+        dragEngine.timer = null;
+      }
+
+      if (!dragEngine.dragging) {
+        resetDragState();
+        return;
+      }
+
+      const card = dragEngine.card;
+      const clone = dragEngine.clone;
+
+      dragEngine.suppressClickUntil = Date.now() + 350;
+
+      if (card && clone && dragEngine.startRect) {
+        const targetRect = card.getBoundingClientRect();
+        const targetDx = targetRect.left - dragEngine.startRect.left;
+        const targetDy = targetRect.top - dragEngine.startRect.top;
+
+        // 놓는 순간 자리로 스냅. 마지막까지 수평 유지.
+        clone.style.transition =
+          'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease';
+        clone.style.transform =
+          `translate3d(${targetDx}px, ${targetDy}px, 0) scale(1) rotate(0deg)`;
+        clone.style.boxShadow =
+          '0 4px 12px rgba(15, 23, 42, 0.08)';
+
+        setTimeout(() => {
+          if (clone.isConnected) clone.remove();
+          if (card) card.classList.remove('drag-placeholder-card');
+        }, 165);
+      } else {
+        if (clone && clone.isConnected) clone.remove();
+        if (card) card.classList.remove('drag-placeholder-card');
+      }
+
+      document.body.classList.remove('is-card-dragging');
+      persistDraggedOrder();
+      resetDragState(false);
+    }
+
+    function persistDraggedOrder() {
+      const allLines = loadData();
+      const reordered = [];
+
+      document.querySelectorAll('.sortable-group').forEach(gEl => {
+        const currentOwner = gEl.dataset.owner;
+
+        gEl.querySelectorAll('[data-id]').forEach(cardEl => {
+          const lineId = parseInt(cardEl.dataset.id);
+          const found = allLines.find(l => l.id === lineId);
+
+          if (found) {
+            found.owner = currentOwner;
+            reordered.push(found);
           }
         });
       });
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
+    }
+
+    function resetDragState(removeVisuals = true) {
+      if (dragEngine.raf) {
+        cancelAnimationFrame(dragEngine.raf);
+        dragEngine.raf = null;
+      }
+
+      if (removeVisuals) {
+        if (dragEngine.clone && dragEngine.clone.isConnected) dragEngine.clone.remove();
+        if (dragEngine.card) dragEngine.card.classList.remove('drag-placeholder-card');
+        document.body.classList.remove('is-card-dragging');
+      }
+
+      dragEngine.card = null;
+      dragEngine.clone = null;
+      dragEngine.timer = null;
+      dragEngine.dragging = false;
+      dragEngine.inputType = null;
+      dragEngine.touchId = null;
+      dragEngine.startRect = null;
     }
 
     function openModal(id = null, prefillData = null) {
