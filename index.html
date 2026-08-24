@@ -19,32 +19,35 @@
     .line-card {
       user-select: none;
       -webkit-user-select: none;
-      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+      transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
-    /* 1. 카드를 꾹 눌러 집어 올렸을 때 (기울기 없이 수평 유지 + 그림자만 살짝 뜸) */
+    /* 1. 카드를 꾹 눌러 활성화했을 때 (수평 상태로 살짝 강조) */
     .sortable-chosen {
       cursor: grabbing !important;
+      transform: scale(1.02) !important;
       border-color: #6366f1 !important;
-      box-shadow: 0 14px 25px -5px rgba(0, 0, 0, 0.15) !important;
+      box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.15) !important;
       z-index: 50 !important;
     }
 
-    /* 2. 드래그 중인 실제 카드 (수평 유지) */
+    /* 2. 손가락을 따라 부드럽게 이동하는 활성 카드 */
     .sortable-drag {
-      opacity: 1 !important;
+      opacity: 0.98 !important;
+      transform: scale(1.03) !important;
       background-color: #ffffff !important;
       border: 2px solid #6366f1 !important;
       border-radius: 1.5rem !important;
-      box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.2) !important;
-      z-index: 9999 !important;
+      box-shadow: 0 20px 30px -8px rgba(15, 23, 42, 0.22) !important;
+      pointer-events: none !important;
+      z-index: 99999 !important;
     }
 
-    /* 3. 카드가 들어갈 자리 (명확한 점선 박스로 비켜줌) */
+    /* 3. 이동할 대상 위치에 부드럽게 열리는 빈 자리 */
     .sortable-ghost {
-      opacity: 0.35 !important;
-      background-color: #e0e7ff !important;
-      border: 2px dashed #6366f1 !important;
+      opacity: 0.25 !important;
+      background-color: #f1f5f9 !important;
+      border: 2px dashed #94a3b8 !important;
       border-radius: 1.5rem !important;
       box-shadow: none !important;
     }
@@ -698,24 +701,28 @@
       initSortable();
     }
 
-    // 안정적인 네이티브 터치 기반 정렬 엔진 초기화
+    // 자연스럽고 부드러운 슬라이딩 드래그 엔진
     function initSortable() {
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         new Sortable(groupEl, {
           group: 'mvno-lines',
-          animation: 200,             // 부드러운 위치 스왑 시간
-          delay: 150,                 // 0.15초 롱프레스
+          animation: 250,              // 자리를 비켜주는 부드러운 슬라이딩 시간
+          easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+          delay: 160,                  // 0.16초 롱프레스 후 활성화
           delayOnTouchOnly: true,
-          touchStartThreshold: 5,     // 미세 터치 흔들림 무시
-          scroll: true,               // 화면 끝에 도달 시 자연스러운 자동 스크롤
-          scrollSensitivity: 80,
-          scrollSpeed: 15,
+          touchStartThreshold: 4,      // 스크롤과 터치 분리
+          swapThreshold: 0.65,         // 카드가 65% 이상 겹쳤을 때만 자연스럽게 자리 교체
+          invertSwap: true,
+          direction: 'vertical',
+          scroll: true,
+          scrollSensitivity: 60,
+          scrollSpeed: 12,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
           dragClass: 'sortable-drag',
           onStart: function () {
             if (navigator.vibrate) {
-              navigator.vibrate(25);
+              navigator.vibrate(20);
             }
           },
           onEnd: function () {
