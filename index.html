@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- BUILD: 2026-08-24 MOBILE-DRAG-V5-SORTABLE -->
+<!-- BUILD: 2026-08-24 MOBILE-DRAG-V6-HANDLE -->
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -33,6 +33,23 @@
         border-color 0.18s ease,
         opacity 0.18s ease,
         scale 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /*
+      드래그 손잡이 전용 터치 영역.
+      여기만 touch-action:none 을 줘서, 손잡이를 꾹 누르는 제스처가
+      브라우저의 기본 세로 스크롤(pan-y)에 선점당하지 않도록 한다.
+      (카드 전체에 touch-action:none 을 주면 드래그는 되지만
+       카드 위에서의 일반 스와이프 스크롤이 막혀버리기 때문에
+       반드시 손잡이 요소에만 한정한다.)
+    */
+    .drag-handle {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      cursor: grab;
+    }
+    .sortable-chosen .drag-handle {
+      cursor: grabbing;
     }
 
     /*
@@ -660,7 +677,7 @@
               <span class="w-2.5 h-2.5 rounded-full ${owner.includes('우민준') ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-pink-500 shadow-sm shadow-pink-200'}"></span>
               <h2 class="font-extrabold text-slate-700 text-sm tracking-tight">명의자: ${owner} (${items.length}회선)</h2>
             </div>
-            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-solid fa-arrows-up-down mr-1"></i>꾹 눌러 순서 변경</span>
+            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-solid fa-grip-vertical mr-1"></i>손잡이를 꾹 눌러 순서 변경</span>
           </div>
         `;
 
@@ -690,10 +707,10 @@
 
           const card = document.createElement('div');
           card.dataset.id = line.id;
-          card.className = `line-card bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab`;
+          card.className = `line-card bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative`;
           card.innerHTML = `
             <div class="flex justify-between items-start mb-2.5">
-              <div>
+              <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
                   <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${line.type === 'USIM' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}">${line.type}</span>
                   <span class="text-xs font-semibold text-slate-500">${line.carrier}</span>
@@ -703,9 +720,14 @@
                   ${line.phone ? `<span class="text-[11px] text-slate-400 font-mono">(${line.phone})</span>` : ''}
                 </div>
               </div>
-              <div class="text-right">
-                ${ddayBadge}
-                <p class="text-[10px] text-slate-400 mt-1 font-medium"><i class="fa-regular fa-calendar-xmark"></i> ${line.endDate} 마감</p>
+              <div class="text-right flex items-start gap-2">
+                <div>
+                  ${ddayBadge}
+                  <p class="text-[10px] text-slate-400 mt-1 font-medium"><i class="fa-regular fa-calendar-xmark"></i> ${line.endDate} 마감</p>
+                </div>
+                <div class="drag-handle shrink-0 w-8 h-8 -mt-1 -mr-1 rounded-xl flex items-center justify-center text-slate-300 active:bg-slate-100 active:text-slate-500 transition">
+                  <i class="fa-solid fa-grip-vertical text-sm"></i>
+                </div>
               </div>
             </div>
 
@@ -765,6 +787,7 @@
         const instance = new Sortable(groupEl, {
           group: 'mvno-lines',
           draggable: '.line-card',
+          handle: '.drag-handle',
 
           /*
             모바일/WebView에서도 HTML5 네이티브 DnD 대신
