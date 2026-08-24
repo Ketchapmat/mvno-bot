@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- BUILD: 2026-08-24 MOBILE-DRAG-V7-FULLCARD-JSON-SHARE -->
+<!-- BUILD: 2026-08-24 V10-HA-COMPACT-HEADER -->
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>알뜰폰 회선 매니저 V9</title>
+  <title>알뜰폰 회선 매니저 V10</title>
   <link rel="manifest" href="manifest.json?v=20260824-5">
   <link rel="apple-touch-icon" href="MVNO-Man.png?v=20260824-5">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -123,8 +123,8 @@
         </div>
         알뜰폰 회선 매니저
       </h1>
-      <div class="flex gap-1.5">
-        <button onclick="openApiKeyModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
+      <div class="flex gap-1.5 shrink-0">
+        <button id="api-key-btn" onclick="openApiKeyModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
           <i class="fa-solid fa-key text-amber-300"></i> API
         </button>
         <button onclick="openHaModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
@@ -133,8 +133,8 @@
         <button onclick="openJsonModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
           <i class="fa-solid fa-cloud-arrow-up text-sky-300"></i> 백업
         </button>
-        <button onclick="openModal()" class="text-xs bg-white text-indigo-700 font-bold px-3 py-1.5 rounded-xl shadow-md hover:bg-indigo-50 transition active:scale-95">
-          <i class="fa-solid fa-plus"></i> 추가
+        <button onclick="openModal()" aria-label="회선 추가" title="회선 추가" class="w-8 h-8 shrink-0 bg-white text-indigo-700 font-bold rounded-xl shadow-md hover:bg-indigo-50 transition active:scale-95 flex items-center justify-center">
+          <i class="fa-solid fa-plus text-xs"></i>
         </button>
       </div>
     </div>
@@ -1297,14 +1297,23 @@ JSON 출력 포맷:
       document.getElementById('api-modal').classList.add('hidden');
     }
 
+    function updateApiButtonVisibility() {
+      const btn = document.getElementById('api-key-btn');
+      if (!btn) return;
+      const hasKey = !!localStorage.getItem(API_KEY_STORAGE);
+      btn.classList.toggle('hidden', hasKey);
+    }
+
     function saveApiKey() {
       const key = document.getElementById('gemini-api-key-input').value.trim();
       if (key) {
         localStorage.setItem(API_KEY_STORAGE, key);
+        updateApiButtonVisibility();
         alert('Gemini API 키가 저장되었습니다.');
         closeApiKeyModal();
       } else {
         localStorage.removeItem(API_KEY_STORAGE);
+        updateApiButtonVisibility();
         alert('API 키가 삭제되었습니다.');
       }
     }
@@ -1617,6 +1626,7 @@ JSON 출력 포맷:
       }
     }
 
+    updateApiButtonVisibility();
     updateHaStatusUI();
     render();
   </script>
