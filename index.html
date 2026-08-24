@@ -7,23 +7,38 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <style>
+    .sortable-ghost {
+      opacity: 0.25;
+      transform: scale(0.97);
+    }
+    .sortable-chosen {
+      box-shadow: 0 14px 28px rgba(99, 102, 241, 0.2), 0 10px 10px rgba(99, 102, 241, 0.15);
+      transform: scale(1.02);
+      border-color: #6366f1 !important;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans pb-16">
+<body class="bg-slate-50 text-slate-800 font-sans pb-20 select-none antialiased">
 
   <!-- 헤더 -->
-  <header class="bg-indigo-600 text-white p-4 shadow-md sticky top-0 z-40">
+  <header class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-4 shadow-lg sticky top-0 z-40">
     <div class="max-w-md mx-auto flex justify-between items-center">
-      <h1 class="text-base font-bold flex items-center gap-2">
-        <i class="fa-solid fa-sim-card"></i> 알뜰폰 회선 매니저
+      <h1 class="text-base font-extrabold tracking-tight flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
+          <i class="fa-solid fa-sim-card text-indigo-200 text-xs"></i>
+        </div>
+        알뜰폰 회선 매니저
       </h1>
       <div class="flex gap-1.5">
-        <button onclick="openApiKeyModal()" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-2.5 py-1.5 rounded-lg">
-          <i class="fa-solid fa-key"></i> API
+        <button onclick="openApiKeyModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
+          <i class="fa-solid fa-key text-amber-300"></i> API
         </button>
-        <button onclick="openJsonModal()" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-2.5 py-1.5 rounded-lg">
-          <i class="fa-solid fa-database"></i> 백업
+        <button onclick="openJsonModal()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1.5 rounded-xl font-medium transition backdrop-blur-sm">
+          <i class="fa-solid fa-cloud-arrow-up text-sky-300"></i> 백업
         </button>
-        <button onclick="openModal()" class="text-xs bg-white text-indigo-700 font-bold px-2.5 py-1.5 rounded-lg shadow">
+        <button onclick="openModal()" class="text-xs bg-white text-indigo-700 font-bold px-3 py-1.5 rounded-xl shadow-md hover:bg-indigo-50 transition active:scale-95">
           <i class="fa-solid fa-plus"></i> 추가
         </button>
       </div>
@@ -32,42 +47,71 @@
 
   <main class="max-w-md mx-auto p-4 space-y-4">
 
-    <!-- AI 자동등록 버튼 그룹 (스크린샷 / 말로 등록) -->
-    <div class="grid grid-cols-2 gap-2">
-      <!-- 1. 스크린샷 캡처 등록 -->
-      <label class="cursor-pointer bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-sm flex flex-col justify-between hover:opacity-95 transition">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-camera text-amber-300"></i> AI 캡처 분석</span>
-          <i class="fa-solid fa-chevron-right text-[10px] text-indigo-200"></i>
+    <!-- AI 자동등록 버튼 그룹 -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <!-- 1. AI 캡처 분석 -->
+      <label class="cursor-pointer bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 rounded-2xl p-3.5 text-white shadow-sm hover:shadow-md transition active:scale-98 flex flex-col justify-between border border-indigo-400/30">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-bold flex items-center gap-1.5">
+            <span class="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px]">
+              <i class="fa-solid fa-camera text-amber-300"></i>
+            </span>
+            AI 캡처 분석
+          </span>
+          <i class="fa-solid fa-arrow-right text-[10px] text-indigo-200"></i>
         </div>
-        <p class="text-[10px] text-indigo-100">고객센터 화면 업로드</p>
+        <p class="text-[10px] text-indigo-100 font-normal">고객센터 가입화면 스캔</p>
         <input type="file" id="ai-screenshot-input" accept="image/*" class="hidden" onchange="processScreenshot(event)">
       </label>
 
-      <!-- 2. 말로/자연어 텍스트 등록 -->
-      <button onclick="openVoiceModal()" class="text-left bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-3.5 text-white shadow-sm flex flex-col justify-between hover:opacity-95 transition">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-microphone text-amber-300"></i> AI 말로 등록</span>
-          <i class="fa-solid fa-chevron-right text-[10px] text-purple-200"></i>
+      <!-- 2. AI 말로 등록 -->
+      <button onclick="openVoiceModal()" class="text-left bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-2xl p-3.5 text-white shadow-sm hover:shadow-md transition active:scale-98 flex flex-col justify-between border border-purple-400/30">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-bold flex items-center gap-1.5">
+            <span class="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-[10px]">
+              <i class="fa-solid fa-microphone text-amber-300"></i>
+            </span>
+            AI 말로 등록
+          </span>
+          <i class="fa-solid fa-arrow-right text-[10px] text-purple-200"></i>
         </div>
-        <p class="text-[10px] text-purple-100">자연어로 대충 말/작성</p>
+        <p class="text-[10px] text-purple-100 font-normal">음성/자연어로 편하게 입력</p>
       </button>
     </div>
 
-    <!-- 상단 상태 요약 바 -->
+    <!-- 상단 상태 요약 바 (클릭 시 해당 회선만 필터링) -->
     <div class="grid grid-cols-2 gap-3">
-      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-        <p class="text-[11px] font-bold text-amber-700 flex items-center justify-center gap-1">
-          <i class="fa-regular fa-clock"></i> 30일 이내 만료
-        </p>
-        <p id="count-30" class="text-xl font-extrabold text-amber-800 mt-0.5">0건</p>
-      </div>
-      <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
-        <p class="text-[11px] font-bold text-rose-700 flex items-center justify-center gap-1">
-          <i class="fa-solid fa-triangle-exclamation"></i> 7일 이내 초임박
-        </p>
-        <p id="count-7" class="text-xl font-extrabold text-rose-800 mt-0.5">0건</p>
-      </div>
+      <!-- 30일 이내 만료 버튼 -->
+      <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left bg-gradient-to-br from-amber-50 to-orange-50/80 border border-amber-200/80 rounded-2xl p-3.5 shadow-sm hover:shadow transition active:scale-98 relative overflow-hidden group">
+        <div class="flex justify-between items-center">
+          <p class="text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            30일 이내 만료
+          </p>
+          <i class="fa-solid fa-angle-right text-xs text-amber-400 group-hover:translate-x-0.5 transition"></i>
+        </div>
+        <p id="count-30" class="text-2xl font-extrabold text-amber-900 mt-1">0건</p>
+        <span id="filter-indicator-30" class="hidden text-[9px] font-bold text-amber-700 bg-amber-200/80 px-2 py-0.5 rounded-full mt-1.5 inline-block">필터 적용 중</span>
+      </button>
+
+      <!-- 7일 이내 만료 버튼 -->
+      <button id="btn-filter-7" onclick="toggleFilter('7')" class="text-left bg-gradient-to-br from-rose-50 to-pink-50/80 border border-rose-200/80 rounded-2xl p-3.5 shadow-sm hover:shadow transition active:scale-98 relative overflow-hidden group">
+        <div class="flex justify-between items-center">
+          <p class="text-[11px] font-bold text-rose-800 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+            7일 이내 만료
+          </p>
+          <i class="fa-solid fa-angle-right text-xs text-rose-400 group-hover:translate-x-0.5 transition"></i>
+        </div>
+        <p id="count-7" class="text-2xl font-extrabold text-rose-900 mt-1">0건</p>
+        <span id="filter-indicator-7" class="hidden text-[9px] font-bold text-rose-700 bg-rose-200/80 px-2 py-0.5 rounded-full mt-1.5 inline-block">초임박 필터 중</span>
+      </button>
+    </div>
+
+    <!-- 필터 초기화 배너 -->
+    <div id="filter-reset-bar" class="hidden bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 flex items-center justify-between text-xs text-indigo-900 font-medium">
+      <span id="filter-status-text">필터링된 회선만 보고 있습니다.</span>
+      <button onclick="resetFilter()" class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg hover:bg-indigo-700">전체보기 ✕</button>
     </div>
 
     <!-- 회선 목록 컨테이너 -->
@@ -76,60 +120,70 @@
   </main>
 
   <!-- AI 분석 로딩 오버레이 -->
-  <div id="loading-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex flex-col items-center justify-center text-white space-y-3">
-    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-indigo-400"></i>
+  <div id="loading-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex flex-col items-center justify-center text-white space-y-3 backdrop-blur-sm">
+    <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20">
+      <i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-300"></i>
+    </div>
     <p id="loading-msg" class="text-sm font-bold">AI가 정보를 분석 중입니다...</p>
     <p class="text-xs text-slate-300">개통일, 기간, 요금제 정보를 추출합니다.</p>
   </div>
 
   <!-- AI 말로/자연어 입력 모달 -->
-  <div id="voice-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-          <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> AI 말로 / 자연어 등록
+  <div id="voice-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-3.5 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </span>
+          AI 말로 / 자연어 등록
         </h3>
-        <button onclick="closeVoiceModal()" class="text-slate-400 text-lg"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeVoiceModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <p class="text-[11px] text-slate-500">
-        스마트폰 키보드의 <b>마이크 버튼(🎤)</b>을 누르고 말하거나, 생각나는 대로 자유롭게 적어주세요.
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        스마트폰 키보드의 <b>마이크 버튼(🎤)</b>을 눌러 말하거나, 생각나는 대로 자유롭게 적어주시면 AI가 자동으로 정리해 드립니다.
       </p>
-      <textarea id="voice-text-input" class="w-full h-28 text-xs border rounded-xl p-3 bg-slate-50 outline-none focus:ring-2 focus:ring-purple-500" placeholder="예시: 우민준 메인 회선 010-1234-5678 프리티 KT망 15기가 무제한 0원에 4월 15일 6개월 개통했어"></textarea>
+      <textarea id="voice-text-input" class="w-full h-28 text-xs border border-slate-200 rounded-2xl p-3 bg-slate-50 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition" placeholder="예시: 우민준 메인 회선 01012345678 프리티 KT망 15기가 무제한 0원에 4월 15일 6개월 개통"></textarea>
       <div class="flex gap-2 pt-1">
-        <button onclick="processVoiceText()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow">
-          <i class="fa-solid fa-robot"></i> AI로 내용 자동 완성하기
+        <button onclick="processVoiceText()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition active:scale-98">
+          <i class="fa-solid fa-bolt"></i> AI로 내용 자동 완성하기
         </button>
       </div>
     </div>
   </div>
 
   <!-- API Key 설정 모달 -->
-  <div id="api-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm">Gemini API 키 설정</h3>
-        <button onclick="closeApiKeyModal()" class="text-slate-400 text-lg"><i class="fa-solid fa-xmark"></i></button>
+  <div id="api-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-3.5 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-key"></i>
+          </span>
+          Gemini API 키 설정
+        </h3>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-[11px] text-slate-500">Google AI Studio에서 발급받은 무료 API Key를 입력하세요.</p>
-      <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="w-full border rounded-lg p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500">
-      <div class="flex gap-2 pt-2">
-        <button onclick="saveApiKey()" class="w-full bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-indigo-700">저장</button>
+      <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+      <div class="flex gap-2 pt-1">
+        <button onclick="saveApiKey()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">저장</button>
       </div>
     </div>
   </div>
 
   <!-- 회선 추가/수정 모달 -->
-  <div id="edit-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
+  <div id="edit-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-3.5 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
         <h3 id="modal-title" class="font-bold text-slate-800">회선 정보 설정</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- 타겟 슬롯 선택 -->
-      <div id="slot-selector-box" class="bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
-        <label class="block font-bold text-indigo-900 text-[11px] mb-1">적용 대상 회선</label>
-        <select id="form-target-slot" onchange="onSlotChange()" class="w-full border border-indigo-200 rounded-lg p-1.5 text-xs bg-white text-indigo-950 font-medium"></select>
+      <div id="slot-selector-box" class="bg-indigo-50/70 p-2.5 rounded-2xl border border-indigo-100">
+        <label class="block font-bold text-indigo-950 text-[11px] mb-1">적용 대상 회선</label>
+        <select id="form-target-slot" onchange="onSlotChange()" class="w-full border border-indigo-200 rounded-xl p-1.5 text-xs bg-white text-indigo-950 font-medium"></select>
       </div>
 
       <form id="line-form" onsubmit="saveLine(event)" class="space-y-3 text-xs">
@@ -138,11 +192,11 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block font-medium text-slate-600 mb-1">명의자</label>
-            <input type="text" id="form-owner" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="우민준 또는 박소연">
+            <input type="text" id="form-owner" required class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="우민준 또는 박소연">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">구분</label>
-            <select id="form-type" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <select id="form-type" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
               <option value="USIM">USIM</option>
               <option value="eSIM">eSIM</option>
             </select>
@@ -152,11 +206,11 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block font-medium text-slate-600 mb-1">회선 별칭</label>
-            <input type="text" id="form-name" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 1. main usi">
+            <input type="text" id="form-name" required class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 1. main usi">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">전화번호 (자동매칭용)</label>
-            <input type="tel" id="form-phone" maxlength="13" oninput="formatPhoneInput(this)" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="010-0000-0000">
+            <input type="tel" id="form-phone" maxlength="13" oninput="formatPhoneInput(this)" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="010-0000-0000">
           </div>
         </div>
 
@@ -164,11 +218,11 @@
         <div class="grid grid-cols-3 gap-2">
           <div class="col-span-2">
             <label class="block font-medium text-slate-600 mb-1">알뜰폰 통신사</label>
-            <input type="text" id="form-carrier-name" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 프리티, 모비링, 이지모바일">
+            <input type="text" id="form-carrier-name" required class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 프리티, 모비링, 이지모바일">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">통신망</label>
-            <select id="form-carrier-net" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium">
+            <select id="form-carrier-net" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium">
               <option value="KT망">KT</option>
               <option value="SKT망">SKT</option>
               <option value="LGU+망">LGU+</option>
@@ -176,31 +230,32 @@
           </div>
         </div>
 
+        <!-- 데이터/통화/문자 (숫자 입력시 단위 자동 추가) -->
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="block font-medium text-slate-600 mb-1">데이터</label>
-            <input type="text" id="form-data" required class="w-full border rounded-lg p-2" placeholder="15GB+1M">
+            <input type="text" id="form-data" required onblur="formatDataInput(this)" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="15 -> 15GB">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">통화</label>
-            <input type="text" id="form-call" required class="w-full border rounded-lg p-2" placeholder="무제한">
+            <input type="text" id="form-call" required onblur="formatCallInput(this)" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="100 -> 100분">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">문자</label>
-            <input type="text" id="form-sms" required class="w-full border rounded-lg p-2" placeholder="100건">
+            <input type="text" id="form-sms" required onblur="formatSmsInput(this)" class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="100 -> 100건">
           </div>
         </div>
 
         <!-- 날짜 및 할인기간 -->
-        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-2.5">
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block font-bold text-slate-700 mb-1">개통일 (가입일)</label>
-              <input type="date" id="form-start-date" required onchange="calcEndDate()" class="w-full border rounded-lg p-1.5 bg-white">
+              <input type="date" id="form-start-date" required onchange="calcEndDate()" class="w-full border border-slate-200 rounded-xl p-1.5 bg-white">
             </div>
             <div>
               <label class="block font-bold text-slate-700 mb-1">할인 기간</label>
-              <select id="form-duration" onchange="calcEndDate()" class="w-full border rounded-lg p-1.5 bg-white font-medium">
+              <select id="form-duration" onchange="calcEndDate()" class="w-full border border-slate-200 rounded-xl p-1.5 bg-white font-medium">
                 <option value="1">1개월</option>
                 <option value="3">3개월</option>
                 <option value="4">4개월</option>
@@ -222,41 +277,83 @@
               <label class="font-bold text-indigo-700 text-[11px]">⚡ 할인 종료일 (자동 계산)</label>
               <span id="calc-hint" class="text-[10px] text-emerald-600 font-bold"></span>
             </div>
-            <input type="date" id="form-end-date" required class="w-full border rounded-lg p-1.5 bg-indigo-50/50 font-bold text-indigo-900">
+            <input type="date" id="form-end-date" required class="w-full border border-indigo-200 rounded-xl p-1.5 bg-indigo-50/40 font-bold text-indigo-900">
           </div>
         </div>
 
+        <!-- 할인 요금 -->
         <div>
           <label class="block font-medium text-slate-600 mb-1">현재 할인 요금</label>
-          <input type="text" id="form-fee" required class="w-full border rounded-lg p-2" placeholder="0원 또는 1,100원">
+          <input type="text" id="form-fee" required oninput="formatFeeInput(this)" class="w-full border border-slate-200 rounded-xl p-2 font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="숫자만 입력 (예: 0 -> 0원, 1100 -> 1,100원)">
         </div>
 
         <div class="pt-2 flex gap-2">
-          <button type="button" onclick="deleteLine()" id="btn-delete" class="w-1/3 bg-slate-200 text-slate-700 py-2.5 rounded-lg font-bold hidden">삭제</button>
-          <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-bold hover:bg-indigo-700">저장</button>
+          <button type="button" onclick="deleteLine()" id="btn-delete" class="w-1/3 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hidden hover:bg-slate-300 transition">삭제</button>
+          <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md">저장</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- JSON 백업 모달 -->
-  <div id="json-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm">데이터 백업 및 복원</h3>
-        <button onclick="closeJsonModal()" class="text-slate-400 text-lg"><i class="fa-solid fa-xmark"></i></button>
+  <!-- 데이터 백업/이메일/파일 모달 -->
+  <div id="json-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl border border-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </span>
+          데이터 백업 및 이메일 전송
+        </h3>
+        <button onclick="closeJsonModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <textarea id="json-input" class="w-full h-44 text-xs font-mono border rounded-lg p-2 bg-slate-50 outline-none"></textarea>
-      <div class="flex gap-2 pt-1">
-        <button onclick="copyJsonData()" class="w-1/2 bg-slate-100 border text-slate-700 py-2 rounded-lg text-xs font-bold">코드 복사</button>
-        <button onclick="applyJsonData()" class="w-1/2 bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold">데이터 적용</button>
+
+      <!-- 백업 액션 버튼 그룹 -->
+      <div class="grid grid-cols-2 gap-2">
+        <!-- 1. 이메일 전송 (dong8279@naver.com) -->
+        <button onclick="sendEmailBackup()" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-2xl text-xs font-bold shadow-sm hover:opacity-95 transition flex flex-col items-center justify-center gap-1 active:scale-98">
+          <i class="fa-solid fa-envelope text-base"></i>
+          <span>이메일 전송</span>
+          <span class="text-[9px] text-emerald-100 font-normal">dong8279@naver.com</span>
+        </button>
+
+        <!-- 2. 백업 파일 즉시 다운로드 -->
+        <button onclick="downloadBackupFile()" class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-3 rounded-2xl text-xs font-bold shadow-sm hover:opacity-95 transition flex flex-col items-center justify-center gap-1 active:scale-98">
+          <i class="fa-solid fa-file-arrow-down text-base"></i>
+          <span>파일 다운로드</span>
+          <span class="text-[9px] text-sky-100 font-normal">.json 파일로 저장</span>
+        </button>
       </div>
+
+      <!-- 파일로 복원하기 -->
+      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-700">백업 파일 불러오기</p>
+          <p class="text-[10px] text-slate-400">저장했던 .json 파일을 선택해 복원</p>
+        </div>
+        <label class="cursor-pointer bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-100 transition">
+          <i class="fa-solid fa-folder-open text-amber-500 mr-1"></i> 파일 선택
+          <input type="file" accept=".json" class="hidden" onchange="restoreFromFile(event)">
+        </label>
+      </div>
+
+      <!-- 데이터 직접 입력/적용 영역 -->
+      <div class="space-y-1.5">
+        <label class="block text-[11px] font-bold text-slate-500">데이터 텍스트 직접 복원/적용</label>
+        <textarea id="json-input" class="w-full h-24 text-[11px] font-mono border border-slate-200 rounded-2xl p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+      </div>
+
+      <button onclick="applyJsonData()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-slate-900 transition">
+        입력창의 데이터 적용하기
+      </button>
     </div>
   </div>
 
   <script>
     const STORAGE_KEY = 'MVNO_LINES_DATA';
     const API_KEY_STORAGE = 'MVNO_GEMINI_API_KEY';
+
+    let currentFilter = 'all';
 
     const defaultData = [
       { id: 1, owner: '우민준', name: '1. main usi', phone: '010-0000-0001', type: 'USIM', carrier: '프리티 (KT망)', data: '15GB+1Mbps', call: '무제한', sms: '100건', startDate: '2026-04-15', duration: '6', endDate: '2026-10-15', fee: '0원' },
@@ -266,18 +363,34 @@
       { id: 5, owner: '박소연', name: '4. MSJ', phone: '010-0000-0005', type: 'USIM', carrier: '스노우맨 (KT망)', data: '1.5GB', call: '50분', sms: '50건', startDate: '2026-05-10', duration: '6', endDate: '2026-11-10', fee: '0원' }
     ];
 
-    function parseCarrier(str) {
-      if (!str) return { name: '', net: 'KT망' };
-      let net = 'KT망';
-      if (str.includes('SKT') || str.includes('skt') || str.includes('SK')) {
-        net = 'SKT망';
-      } else if (str.includes('LG') || str.includes('lg') || str.includes('U+') || str.includes('u+')) {
-        net = 'LGU+망';
-      } else if (str.includes('KT') || str.includes('kt')) {
-        net = 'KT망';
+    function formatDataInput(el) {
+      let val = el.value.trim();
+      if (/^\d+(\.\d+)?$/.test(val)) {
+        el.value = val + 'GB';
       }
-      let name = str.replace(/\(?(SKT망|KT망|LGU\+망|LG U\+망|SKT|KT|LGU\+|LG|skt|kt|lgu\+)\)?/gi, '').trim();
-      return { name, net };
+    }
+
+    function formatCallInput(el) {
+      let val = el.value.trim();
+      if (/^\d+$/.test(val)) {
+        el.value = val + '분';
+      }
+    }
+
+    function formatSmsInput(el) {
+      let val = el.value.trim();
+      if (/^\d+$/.test(val)) {
+        el.value = val + '건';
+      }
+    }
+
+    function formatFeeInput(el) {
+      let val = el.value.replace(/[^0-9]/g, '');
+      if (val === '') {
+        el.value = '';
+        return;
+      }
+      el.value = Number(val).toLocaleString('ko-KR') + '원';
     }
 
     function formatPhoneInput(target) {
@@ -293,6 +406,20 @@
         res = val.substr(0, 3) + '-' + val.substr(3, 4) + '-' + val.substr(7, 4);
       }
       target.value = res;
+    }
+
+    function parseCarrier(str) {
+      if (!str) return { name: '', net: 'KT망' };
+      let net = 'KT망';
+      if (str.includes('SKT') || str.includes('skt') || str.includes('SK')) {
+        net = 'SKT망';
+      } else if (str.includes('LG') || str.includes('lg') || str.includes('U+') || str.includes('u+')) {
+        net = 'LGU+망';
+      } else if (str.includes('KT') || str.includes('kt')) {
+        net = 'KT망';
+      }
+      let name = str.replace(/\(?(SKT망|KT망|LGU\+망|LG U\+망|SKT|KT|LGU\+|LG|skt|kt|lgu\+)\)?/gi, '').trim();
+      return { name, net };
     }
 
     function loadData() {
@@ -340,16 +467,83 @@
       return Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
     }
 
+    function toggleFilter(type) {
+      if (currentFilter === type) {
+        currentFilter = 'all';
+      } else {
+        currentFilter = type;
+      }
+      render();
+    }
+
+    function resetFilter() {
+      currentFilter = 'all';
+      render();
+    }
+
     function render() {
-      const lines = loadData();
+      const allLines = loadData();
       const container = document.getElementById('lines-container');
       container.innerHTML = '';
 
       let count30 = 0;
       let count7 = 0;
 
+      allLines.forEach(line => {
+        const dDay = getDiffDays(line.endDate);
+        if (dDay <= 30 && dDay >= 0) count30++;
+        if (dDay <= 7 && dDay >= 0) count7++;
+      });
+
+      document.getElementById('count-30').innerText = `${count30}건`;
+      document.getElementById('count-7').innerText = `${count7}건`;
+
+      const ind30 = document.getElementById('filter-indicator-30');
+      const ind7 = document.getElementById('filter-indicator-7');
+      const resetBar = document.getElementById('filter-reset-bar');
+      const statusText = document.getElementById('filter-status-text');
+
+      if (currentFilter === '30') {
+        ind30.classList.remove('hidden');
+        ind7.classList.add('hidden');
+        resetBar.classList.remove('hidden');
+        statusText.innerText = '⚡ [30일 이내 만료] 회선만 보는 중';
+      } else if (currentFilter === '7') {
+        ind30.classList.add('hidden');
+        ind7.classList.remove('hidden');
+        resetBar.classList.remove('hidden');
+        statusText.innerText = '🚨 [7일 이내 초임박] 회선만 보는 중';
+      } else {
+        ind30.classList.add('hidden');
+        ind7.classList.add('hidden');
+        resetBar.classList.add('hidden');
+      }
+
+      let filteredLines = allLines;
+      if (currentFilter === '30') {
+        filteredLines = allLines.filter(line => {
+          const d = getDiffDays(line.endDate);
+          return d <= 30 && d >= 0;
+        });
+      } else if (currentFilter === '7') {
+        filteredLines = allLines.filter(line => {
+          const d = getDiffDays(line.endDate);
+          return d <= 7 && d >= 0;
+        });
+      }
+
+      if (filteredLines.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl p-8 text-center text-slate-400 border border-slate-100 shadow-sm space-y-2">
+            <i class="fa-solid fa-shield-cat text-3xl text-slate-300"></i>
+            <p class="text-xs font-medium">해당하는 만료 예정 회선이 없습니다.</p>
+          </div>
+        `;
+        return;
+      }
+
       const groups = {};
-      lines.forEach(item => {
+      filteredLines.forEach(item => {
         const owner = item.owner || '미지정';
         if (!groups[owner]) groups[owner] = [];
         groups[owner].push(item);
@@ -359,11 +553,18 @@
         const section = document.createElement('section');
         section.className = 'space-y-3';
         section.innerHTML = `
-          <div class="flex items-center gap-2 px-1">
-            <span class="w-2.5 h-2.5 rounded-full ${owner.includes('우민준') ? 'bg-indigo-600' : 'bg-pink-500'}"></span>
-            <h2 class="font-bold text-slate-700 text-sm">명의자: ${owner} (${items.length}회선)</h2>
+          <div class="flex items-center justify-between px-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full ${owner.includes('우민준') ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-pink-500 shadow-sm shadow-pink-200'}"></span>
+              <h2 class="font-extrabold text-slate-700 text-sm tracking-tight">명의자: ${owner} (${items.length}회선)</h2>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-solid fa-arrows-up-down mr-1"></i>꾹 눌러 순서 변경</span>
           </div>
         `;
+
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'space-y-3 sortable-group';
+        cardsContainer.dataset.owner = owner;
 
         items.forEach(line => {
           const dDay = getDiffDays(line.endDate);
@@ -371,33 +572,33 @@
           const portReady = elapsed >= 90;
           const portRemain = 90 - elapsed;
 
-          if (dDay <= 30 && dDay >= 0) count30++;
-          if (dDay <= 7 && dDay >= 0) count7++;
-
-          let cardBorder = 'border-slate-200';
+          let cardBorder = 'border-slate-200/90';
           let ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">D-${dDay}</span>`;
 
           if (dDay < 0) {
-            cardBorder = 'border-slate-400 bg-slate-50';
+            cardBorder = 'border-slate-300 bg-slate-50/70';
             ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 text-slate-600">만료됨</span>`;
           } else if (dDay <= 7) {
             cardBorder = 'border-2 border-rose-400 bg-rose-50/30';
-            ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white animate-pulse">D-${dDay} 초임박</span>`;
+            ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white animate-pulse shadow-sm shadow-rose-200">D-${dDay} 초임박</span>`;
           } else if (dDay <= 30) {
             cardBorder = 'border-2 border-amber-300 bg-amber-50/20';
-            ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">D-${dDay} 임박</span>`;
+            ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">D-${dDay} 임박</span>`;
           }
 
           const card = document.createElement('div');
-          card.className = `bg-white rounded-2xl p-4 shadow-sm border ${cardBorder} relative`;
+          card.dataset.id = line.id;
+          card.className = `bg-white rounded-3xl p-4 shadow-sm border ${cardBorder} relative cursor-grab active:cursor-grabbing transition-all`;
           card.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
+            <div class="flex justify-between items-start mb-2.5">
               <div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${line.type === 'USIM' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">${line.type}</span>
-                <span class="text-xs text-slate-500 ml-1">${line.carrier}</span>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                  <h3 class="text-sm font-bold text-slate-900">${line.name}</h3>
-                  ${line.phone ? `<span class="text-[10px] text-slate-400 font-mono">(${line.phone})</span>` : ''}
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${line.type === 'USIM' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}">${line.type}</span>
+                  <span class="text-xs font-semibold text-slate-500">${line.carrier}</span>
+                </div>
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  <h3 class="text-sm font-extrabold text-slate-900 tracking-tight">${line.name}</h3>
+                  ${line.phone ? `<span class="text-[11px] text-slate-400 font-mono">(${line.phone})</span>` : ''}
                 </div>
               </div>
               <div class="text-right">
@@ -406,42 +607,75 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg p-2 text-center text-xs mb-3">
-              <div><span class="text-slate-400 block text-[10px]">데이터</span><b>${line.data}</b></div>
-              <div><span class="text-slate-400 block text-[10px]">통화</span><b>${line.call}</b></div>
-              <div><span class="text-slate-400 block text-[10px]">문자</span><b>${line.sms}</b></div>
+            <div class="grid grid-cols-3 gap-1.5 bg-slate-50/90 rounded-2xl p-2.5 text-center text-xs mb-3 border border-slate-100">
+              <div><span class="text-slate-400 block text-[10px] mb-0.5">데이터</span><b class="text-slate-800 font-bold">${line.data}</b></div>
+              <div><span class="text-slate-400 block text-[10px] mb-0.5">통화</span><b class="text-slate-800 font-bold">${line.call}</b></div>
+              <div><span class="text-slate-400 block text-[10px] mb-0.5">문자</span><b class="text-slate-800 font-bold">${line.sms}</b></div>
             </div>
 
             <div class="space-y-1.5 text-xs text-slate-600">
-              <div class="flex justify-between">
-                <span>개통일자 (${line.duration ? line.duration + '개월' : ''})</span>
-                <span class="font-medium text-slate-800">${line.startDate} (${elapsed}일차)</span>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500">개통일자 (${line.duration ? line.duration + '개월' : ''})</span>
+                <span class="font-semibold text-slate-800">${line.startDate} (${elapsed}일차)</span>
               </div>
               <div class="flex justify-between items-center">
-                <span>번호이동 가능 여부</span>
+                <span class="text-slate-500">번호이동 가능 여부</span>
                 ${portReady 
-                  ? '<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">🟢 즉시 이동 가능 (90일 경과)</span>' 
-                  : `<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">🟡 이동 제한 (D-${portRemain}일 후 가능)</span>`
+                  ? '<span class="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg">🟢 즉시 이동 가능 (90일 경과)</span>' 
+                  : `<span class="text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg">🟡 이동 제한 (D-${portRemain}일 후)</span>`
                 }
               </div>
-              <div class="flex justify-between items-center pt-2 border-t border-slate-100">
-                <span>현재 할인 요금</span>
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-indigo-600 text-sm">${line.fee}</span>
-                  <button onclick="editLine(${line.id})" class="text-slate-300 hover:text-slate-600 p-0.5">
+              <div class="flex justify-between items-center pt-2.5 border-t border-slate-100">
+                <span class="text-slate-500">현재 할인 요금</span>
+                <div class="flex items-center gap-2">
+                  <span class="font-extrabold text-indigo-600 text-sm">${line.fee}</span>
+                  <button onclick="editLine(${line.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 p-1.5 rounded-lg transition">
                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                   </button>
                 </div>
               </div>
             </div>
           `;
-          section.appendChild(card);
+          cardsContainer.appendChild(card);
         });
+
+        section.appendChild(cardsContainer);
         container.appendChild(section);
       }
 
-      document.getElementById('count-30').innerText = `${count30}건`;
-      document.getElementById('count-7').innerText = `${count7}건`;
+      initSortable();
+    }
+
+    function initSortable() {
+      document.querySelectorAll('.sortable-group').forEach(groupEl => {
+        new Sortable(groupEl, {
+          group: 'mvno-lines',
+          animation: 200,
+          delay: 150,
+          delayOnTouchOnly: true,
+          touchStartThreshold: 5,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          onEnd: function () {
+            const allLines = loadData();
+            const reordered = [];
+
+            document.querySelectorAll('.sortable-group').forEach(gEl => {
+              const currentOwner = gEl.dataset.owner;
+              gEl.querySelectorAll('[data-id]').forEach(cardEl => {
+                const lineId = parseInt(cardEl.dataset.id);
+                const found = allLines.find(l => l.id === lineId);
+                if (found) {
+                  found.owner = currentOwner;
+                  reordered.push(found);
+                }
+              });
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
+          }
+        });
+      });
     }
 
     function openModal(id = null, prefillData = null) {
@@ -512,7 +746,14 @@
       if (data.startDate) document.getElementById('form-start-date').value = data.startDate;
       if (data.duration) document.getElementById('form-duration').value = data.duration;
       if (data.endDate) document.getElementById('form-end-date').value = data.endDate;
-      if (data.fee) document.getElementById('form-fee').value = data.fee;
+      
+      const feeInput = document.getElementById('form-fee');
+      if (data.fee) {
+        feeInput.value = data.fee;
+        formatFeeInput(feeInput);
+      } else {
+        feeInput.value = '';
+      }
 
       if (data.startDate && data.duration) calcEndDate();
     }
@@ -776,6 +1017,7 @@ JSON 출력 포맷:
       }
     }
 
+    // 백업 모달 열기
     function openJsonModal() {
       document.getElementById('json-input').value = JSON.stringify(loadData(), null, 2);
       document.getElementById('json-modal').classList.remove('hidden');
@@ -785,11 +1027,68 @@ JSON 출력 포맷:
       document.getElementById('json-modal').classList.add('hidden');
     }
 
-    function copyJsonData() {
-      const copyText = document.getElementById('json-input');
-      copyText.select();
-      navigator.clipboard.writeText(copyText.value);
-      alert('데이터가 클립보드에 복사되었습니다.');
+    // 1. 이메일로 백업 데이터 전송 (dong8279@naver.com)
+    function sendEmailBackup() {
+      const lines = loadData();
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const dataStr = JSON.stringify(lines, null, 2);
+
+      let summaryText = lines.map((l, i) => `${i+1}. [${l.owner}] ${l.name} (${l.carrier}) - 만료일: ${l.endDate} / 요금: ${l.fee}`).join('\n');
+
+      const subject = encodeURIComponent(`[알뜰폰 회선 매니저] 백업 데이터 (${dateStr})`);
+      const body = encodeURIComponent(
+        `알뜰폰 회선 매니저 데이터 백업 파일입니다.\n\n` +
+        `[회선 요약 목록]\n${summaryText}\n\n` +
+        `-----------------------------------------\n` +
+        `[복원용 JSON 데이터 코드]\n` +
+        `아래 JSON 코드를 복사하여 앱의 [백업] -> [데이터 적용]에 넣으시면 복원됩니다:\n\n` +
+        `${dataStr}`
+      );
+
+      window.location.href = `mailto:dong8279@naver.com?subject=${subject}&body=${body}`;
+    }
+
+    // 2. 백업 파일 다운로드 (.json 파일 생성)
+    function downloadBackupFile() {
+      const lines = loadData();
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const dataStr = JSON.stringify(lines, null, 2);
+
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mvno_backup_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // 3. 파일 선택으로 복원하기
+    function restoreFromFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (Array.isArray(parsed)) {
+            saveData(parsed);
+            closeJsonModal();
+            alert('백업 파일로부터 회선 데이터가 성공적으로 복원되었습니다.');
+          } else {
+            alert('올바른 백업 파일 형식이 아닙니다.');
+          }
+        } catch (err) {
+          alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
     }
 
     function applyJsonData() {
