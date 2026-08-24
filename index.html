@@ -19,37 +19,74 @@
     .line-card {
       user-select: none;
       -webkit-user-select: none;
-      transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      -webkit-touch-callout: none;
+      touch-action: pan-y;
+      transform-origin: center center;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      will-change: box-shadow, scale;
+      transition:
+        box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.18s ease,
+        scale 0.18s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    /* 1. 카드를 꾹 눌러 활성화했을 때 (수평 상태로 살짝 강조) */
+    /* 롱프레스가 인식된 순간: 제자리에서 수평으로 살짝 떠오름 */
     .sortable-chosen {
       cursor: grabbing !important;
-      transform: scale(1.02) !important;
-      border-color: #6366f1 !important;
-      box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.15) !important;
+      scale: 1.015 !important;
+      rotate: 0deg !important;
+      border-color: #818cf8 !important;
+      box-shadow:
+        0 10px 22px rgba(15, 23, 42, 0.12),
+        0 2px 6px rgba(15, 23, 42, 0.06) !important;
       z-index: 50 !important;
     }
 
-    /* 2. 손가락을 따라 부드럽게 이동하는 활성 카드 */
-    .sortable-drag {
-      opacity: 0.98 !important;
-      transform: scale(1.03) !important;
-      background-color: #ffffff !important;
-      border: 2px solid #6366f1 !important;
+    /*
+      forceFallback 모드에서 손가락을 실제로 따라다니는 복제 카드.
+      중요: transform은 SortableJS가 위치 이동에 사용하므로 건드리지 않는다.
+      확대는 transform 대신 scale 속성으로 처리한다.
+    */
+    .sortable-fallback {
+      opacity: 1 !important;
+      scale: 1.025 !important;
+      rotate: 0deg !important;
+      background: #ffffff !important;
+      border: 1.5px solid #818cf8 !important;
       border-radius: 1.5rem !important;
-      box-shadow: 0 20px 30px -8px rgba(15, 23, 42, 0.22) !important;
+      box-shadow:
+        0 22px 45px rgba(15, 23, 42, 0.20),
+        0 6px 14px rgba(15, 23, 42, 0.10) !important;
       pointer-events: none !important;
       z-index: 99999 !important;
+
+      /* 손가락을 따라갈 때 끌리는 느낌이 생기지 않도록 */
+      transition: none !important;
     }
 
-    /* 3. 이동할 대상 위치에 부드럽게 열리는 빈 자리 */
+    /* 일부 환경에서 dragClass가 붙어도 절대 기울지 않게 */
+    .sortable-drag {
+      rotate: 0deg !important;
+      cursor: grabbing !important;
+    }
+
+    /* 원래 카드가 있던 자리: 카드 모양은 유지하되 희미하게 */
     .sortable-ghost {
-      opacity: 0.25 !important;
-      background-color: #f1f5f9 !important;
-      border: 2px dashed #94a3b8 !important;
+      opacity: 0.16 !important;
+      scale: 0.985 !important;
+      rotate: 0deg !important;
+      background: #eef2f7 !important;
+      border: 1.5px dashed #94a3b8 !important;
       border-radius: 1.5rem !important;
       box-shadow: none !important;
+    }
+
+    /* 드래그 중 텍스트 선택/브라우저 롱프레스 메뉴 방지 */
+    body.is-sorting {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      overscroll-behavior: contain;
     }
   </style>
 </head>
@@ -115,22 +152,24 @@
     <!-- 상단 상태 요약 바 -->
     <div class="grid grid-cols-2 gap-3">
       <!-- 30일 이내 만료 버튼 -->
-      <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/15 border border-amber-300/60 rounded-2xl p-3.5 shadow-sm hover:shadow-md hover:border-amber-400 transition active:scale-98 relative overflow-hidden group">
-        <div class="flex justify-between items-center">
-          <p class="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
+      <button id="btn-filter-30" onclick="toggleFilter('30')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-amber-200/80 bg-gradient-to-br from-[#FFF9ED] via-[#FFF3E2] to-[#FFE8CC]">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.88),transparent_44%)] pointer-events-none"></div>
+        <div class="relative flex justify-between items-center">
+          <p class="text-[11px] font-extrabold text-amber-950 flex items-center gap-1.5 tracking-tight">
             <span id="dot-30" class="w-2 h-2 rounded-full bg-slate-300"></span>
             30일 이내 만료
           </p>
           <i class="fa-solid fa-angle-right text-xs text-amber-500 group-hover:translate-x-0.5 transition"></i>
         </div>
-        <p id="count-30" class="text-2xl font-black text-amber-700 mt-1">0건</p>
-        <span id="filter-indicator-30" class="hidden text-[9px] font-bold text-amber-800 bg-amber-200/90 px-2 py-0.5 rounded-full mt-1.5 inline-block">필터 적용 중</span>
+        <p id="count-30" class="relative text-[34px] leading-none font-black text-[#C56A00] mt-2">0건</p>
+        <span id="filter-indicator-30" class="hidden relative text-[9px] font-bold text-amber-900 bg-white/80 border border-amber-200 px-2 py-0.5 rounded-full mt-2 inline-block">필터 적용 중</span>
       </button>
 
       <!-- 7일 이내 만료 버튼 -->
-      <button id="btn-filter-7" onclick="toggleFilter('7')" class="text-left bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-rose-500/15 border border-rose-300/60 rounded-2xl p-3.5 shadow-sm hover:shadow-md hover:border-rose-400 transition active:scale-98 relative overflow-hidden group">
-        <div class="flex justify-between items-center">
-          <p class="text-[11px] font-extrabold text-rose-900 flex items-center gap-1.5">
+      <button id="btn-filter-7" onclick="toggleFilter('7')" class="text-left rounded-3xl p-4 shadow-sm hover:shadow-md transition active:scale-[0.98] relative overflow-hidden group border border-rose-200/85 bg-gradient-to-br from-[#FFF6F8] via-[#FFECEF] to-[#FFDDE6]">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.9),transparent_44%)] pointer-events-none"></div>
+        <div class="relative flex justify-between items-center">
+          <p class="text-[11px] font-extrabold text-rose-950 flex items-center gap-1.5 tracking-tight">
             <span id="dot-7-container">
               <span id="dot-7" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>
             </span>
@@ -138,8 +177,8 @@
           </p>
           <i class="fa-solid fa-angle-right text-xs text-rose-500 group-hover:translate-x-0.5 transition"></i>
         </div>
-        <p id="count-7" class="text-2xl font-black text-rose-700 mt-1">0건</p>
-        <span id="filter-indicator-7" class="hidden text-[9px] font-bold text-rose-800 bg-rose-200/90 px-2 py-0.5 rounded-full mt-1.5 inline-block">초임박 필터 중</span>
+        <p id="count-7" class="relative text-[34px] leading-none font-black text-[#D61F57] mt-2">0건</p>
+        <span id="filter-indicator-7" class="hidden relative text-[9px] font-bold text-rose-900 bg-white/80 border border-rose-200 px-2 py-0.5 rounded-full mt-2 inline-block">초임박 필터 중</span>
       </button>
     </div>
 
@@ -536,7 +575,7 @@
 
       const dot30 = document.getElementById('dot-30');
       if (count30 > 0) {
-        dot30.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-400';
+        dot30.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_0_4px_rgba(251,191,36,0.18)]';
       } else {
         dot30.className = 'w-2 h-2 rounded-full bg-slate-300';
       }
@@ -545,8 +584,8 @@
       if (count7 > 0) {
         dot7Container.innerHTML = `
           <span class="relative flex h-2.5 w-2.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-60"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-[0_0_0_4px_rgba(244,63,94,0.14)]"></span>
           </span>
         `;
       } else {
@@ -701,39 +740,64 @@
       initSortable();
     }
 
-    // 자연스럽고 부드러운 슬라이딩 드래그 엔진
+    // iPhone처럼: 롱프레스 → 카드가 수평으로 살짝 뜸 → 손가락을 따라 이동
     function initSortable() {
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         new Sortable(groupEl, {
           group: 'mvno-lines',
-          animation: 250,              // 자리를 비켜주는 부드러운 슬라이딩 시간
-          easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-          delay: 160,                  // 0.16초 롱프레스 후 활성화
+
+          // APK/WebView에서도 브라우저 네이티브 드래그 이미지를 쓰지 않도록 강제
+          forceFallback: true,
+          fallbackOnBody: true,
+          fallbackClass: 'sortable-fallback',
+          fallbackTolerance: 4,
+
+          // 롱프레스
+          delay: 240,
           delayOnTouchOnly: true,
-          touchStartThreshold: 4,      // 스크롤과 터치 분리
-          swapThreshold: 0.65,         // 카드가 65% 이상 겹쳤을 때만 자연스럽게 자리 교체
-          invertSwap: true,
+          touchStartThreshold: 8,
+
+          // 카드 재배치 애니메이션
+          animation: 180,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
           direction: 'vertical',
+          swapThreshold: 0.55,
+          invertSwap: false,
+
+          // 세로 스크롤
           scroll: true,
-          scrollSensitivity: 60,
-          scrollSpeed: 12,
+          scrollSensitivity: 70,
+          scrollSpeed: 10,
+
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
           dragClass: 'sortable-drag',
-          onStart: function () {
-            if (navigator.vibrate) {
-              navigator.vibrate(20);
-            }
+
+          // 수정 버튼을 누를 때는 드래그 시작 금지
+          filter: 'button, input, select, textarea, a, label',
+          preventOnFilter: false,
+
+          onChoose: function () {
+            document.body.classList.add('is-sorting');
           },
+
+          onStart: function () {
+            if (navigator.vibrate) navigator.vibrate(18);
+          },
+
           onEnd: function () {
+            document.body.classList.remove('is-sorting');
+
             const allLines = loadData();
             const reordered = [];
 
             document.querySelectorAll('.sortable-group').forEach(gEl => {
               const currentOwner = gEl.dataset.owner;
+
               gEl.querySelectorAll('[data-id]').forEach(cardEl => {
                 const lineId = parseInt(cardEl.dataset.id);
                 const found = allLines.find(l => l.id === lineId);
+
                 if (found) {
                   found.owner = currentOwner;
                   reordered.push(found);
@@ -742,6 +806,10 @@
             });
 
             localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
+          },
+
+          onUnchoose: function () {
+            document.body.classList.remove('is-sorting');
           }
         });
       });
