@@ -407,6 +407,17 @@
         <button onclick="closeJsonModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
+      <!-- 백업 상태 / 복원 안전장치 -->
+      <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[10px] text-slate-400 font-medium">마지막 백업</p>
+          <p id="last-backup-text" class="text-xs font-bold text-slate-700 mt-0.5">아직 백업 기록 없음</p>
+        </div>
+        <button id="btn-undo-restore" onclick="undoLastRestore()" class="hidden shrink-0 bg-white border border-slate-300 text-slate-700 px-2.5 py-1.5 rounded-xl text-[10px] font-bold shadow-sm hover:bg-slate-100 transition">
+          <i class="fa-solid fa-rotate-left mr-1 text-indigo-500"></i>복원 전으로 되돌리기
+        </button>
+      </div>
+
       <!-- 백업 액션 버튼 그룹 -->
       <div class="grid grid-cols-2 gap-2">
         <button onclick="sendEmailBackup()" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-2xl text-xs font-bold shadow-sm hover:opacity-95 transition flex flex-col items-center justify-center gap-1 active:scale-98">
@@ -449,6 +460,8 @@
   <script>
     const STORAGE_KEY = 'MVNO_LINES_DATA';
     const API_KEY_STORAGE = 'MVNO_GEMINI_API_KEY';
+    const BACKUP_META_STORAGE = 'MVNO_LAST_BACKUP_AT';
+    const PRE_RESTORE_STORAGE = 'MVNO_PRE_RESTORE_SNAPSHOT';
 
     let currentFilter = 'all';
 
@@ -529,39 +542,63 @@
       render();
     }
 
+    function parseDateParts(dateStr) {
+      const [year, month, day] = (dateStr || '').split('-').map(Number);
+      if (!year || !month || !day) return null;
+      return { year, month, day };
+    }
+
+    function formatDateParts(year, month, day) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function dateOnlyToUtcMs(dateStr) {
+      const p = parseDateParts(dateStr);
+      if (!p) return NaN;
+      return Date.UTC(p.year, p.month - 1, p.day);
+    }
+
+    function getLocalDateString(date = new Date()) {
+      return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    }
+
     function calcEndDate() {
       const startDateStr = document.getElementById('form-start-date').value;
       const durationVal = document.getElementById('form-duration').value;
 
       if (!startDateStr || durationVal === 'custom') return;
 
-      const months = parseInt(durationVal);
-      const start = new Date(startDateStr);
-      start.setMonth(start.getMonth() + months);
+      const months = parseInt(durationVal, 10);
+      const p = parseDateParts(startDateStr);
+      if (!p || Number.isNaN(months)) return;
 
-      const yyyy = start.getFullYear();
-      const mm = String(start.getMonth() + 1).padStart(2, '0');
-      const dd = String(start.getDate()).padStart(2, '0');
-      const calculatedDate = `${yyyy}-${mm}-${dd}`;
+      // 월말(예: 8/31)에서 몇 개월을 더했을 때 다음 달로 밀려나는 JS Date 문제 방지.
+      // 목표 월에 같은 날짜가 없으면 그 달의 마지막 날로 고정한다.
+      const targetMonthIndex = (p.month - 1) + months;
+      const targetYear = p.year + Math.floor(targetMonthIndex / 12);
+      const targetMonthZero = ((targetMonthIndex % 12) + 12) % 12;
+      const lastDayOfTargetMonth = new Date(targetYear, targetMonthZero + 1, 0).getDate();
+      const targetDay = Math.min(p.day, lastDayOfTargetMonth);
+      const calculatedDate = formatDateParts(targetYear, targetMonthZero + 1, targetDay);
 
       document.getElementById('form-end-date').value = calculatedDate;
       document.getElementById('calc-hint').innerText = `(${months}개월 자동계산됨)`;
     }
 
     function getDiffDays(targetDateStr) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const target = new Date(targetDateStr);
-      target.setHours(0, 0, 0, 0);
-      return Math.round((target - today) / (1000 * 60 * 60 * 24));
+      const todayMs = dateOnlyToUtcMs(getLocalDateString());
+      const targetMs = dateOnlyToUtcMs(targetDateStr);
+      if (Number.isNaN(targetMs)) return 0;
+      return Math.round((targetMs - todayMs) / 86400000);
     }
 
+    // 실제 '경과한 일수': 개통 당일은 0일 경과.
+    // 번호이동 90일 판정은 이 값을 사용한다.
     function getElapsedDays(startDateStr) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const start = new Date(startDateStr);
-      start.setHours(0, 0, 0, 0);
-      return Math.floor((today - start) / (1000 * 60 * 60 * 24)) + 1;
+      const todayMs = dateOnlyToUtcMs(getLocalDateString());
+      const startMs = dateOnlyToUtcMs(startDateStr);
+      if (Number.isNaN(startMs)) return 0;
+      return Math.max(0, Math.floor((todayMs - startMs) / 86400000));
     }
 
     function toggleFilter(type) {
@@ -674,7 +711,7 @@
               <span class="w-2.5 h-2.5 rounded-full ${owner.includes('우민준') ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-pink-500 shadow-sm shadow-pink-200'}"></span>
               <h2 class="font-extrabold text-slate-700 text-sm tracking-tight">명의자: ${owner} (${items.length}회선)</h2>
             </div>
-            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-hand-pointer mr-1"></i>카드를 꾹 눌러 순서 변경</span>
+            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-hand-pointer mr-1"></i>같은 명의자 안에서 꾹 눌러 순서 변경</span>
           </div>
         `;
 
@@ -685,8 +722,9 @@
         items.forEach(line => {
           const dDay = getDiffDays(line.endDate);
           const elapsed = getElapsedDays(line.startDate);
+          const usageDay = elapsed + 1;
           const portReady = elapsed >= 90;
-          const portRemain = 90 - elapsed;
+          const portRemain = Math.max(0, 90 - elapsed);
 
           let cardBorder = 'border-slate-200/90';
           let ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">D-${dDay}</span>`;
@@ -734,7 +772,7 @@
             <div class="space-y-1.5 text-xs text-slate-600">
               <div class="flex justify-between items-center">
                 <span class="text-slate-500">개통일자 (${line.duration ? line.duration + '개월' : ''})</span>
-                <span class="font-semibold text-slate-800">${line.startDate} (${elapsed}일차)</span>
+                <span class="font-semibold text-slate-800">${line.startDate} (${usageDay}일차)</span>
               </div>
               <div class="flex justify-between items-center">
                 <span class="text-slate-500">번호이동 가능 여부</span>
@@ -765,8 +803,8 @@
     }
 
     // ------------------------------------------------------------
-    // MOBILE-DRAG-V7-FULLCARD
-    // 카드 전체 롱프레스 드래그 + iOS 느낌의 수평 리프트 효과
+    // MOBILE-DRAG-V8-FULLCARD-SAFE
+    // 카드 전체 롱프레스 드래그 + 명의자 간 이동 차단 + 안전한 순서 저장
     // ------------------------------------------------------------
     let sortableInstances = [];
 
@@ -779,7 +817,7 @@
 
       document.querySelectorAll('.sortable-group').forEach(groupEl => {
         const instance = new Sortable(groupEl, {
-          group: 'mvno-lines',
+          group: { name: 'mvno-lines', pull: false, put: false },
           draggable: '.line-card',
           /*
             모바일/WebView에서도 HTML5 네이티브 DnD 대신
@@ -845,23 +883,35 @@
 
     function persistSortableOrder() {
       const allLines = loadData();
-      const reordered = [];
+      const nextLines = [...allLines];
 
+      /*
+        필터가 켜져 있을 때는 일부 카드만 DOM에 존재한다.
+        화면에 보이는 카드만 새 배열로 저장하면 숨겨진 회선이 유실되므로,
+        원본 배열에서 '현재 화면에 보이는 카드들의 자리'만 새 순서로 교체한다.
+        숨겨진 회선과 다른 명의자의 데이터는 그대로 유지된다.
+      */
       document.querySelectorAll('.sortable-group').forEach(gEl => {
-        const currentOwner = gEl.dataset.owner;
+        const visibleIds = Array.from(gEl.querySelectorAll('.line-card[data-id]'))
+          .map(cardEl => Number(cardEl.dataset.id));
 
-        gEl.querySelectorAll('.line-card[data-id]').forEach(cardEl => {
-          const lineId = parseInt(cardEl.dataset.id);
-          const found = allLines.find(l => l.id === lineId);
+        if (visibleIds.length < 2) return;
 
-          if (found) {
-            found.owner = currentOwner;
-            reordered.push(found);
-          }
+        const visibleIdSet = new Set(visibleIds);
+        const replaceIndexes = [];
+
+        allLines.forEach((line, index) => {
+          if (visibleIdSet.has(Number(line.id))) replaceIndexes.push(index);
+        });
+
+        replaceIndexes.forEach((targetIndex, orderIndex) => {
+          const lineId = visibleIds[orderIndex];
+          const found = allLines.find(line => Number(line.id) === lineId);
+          if (found) nextLines[targetIndex] = found;
         });
       });
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(reordered));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLines));
     }
 
     function openModal(id = null, prefillData = null) {
@@ -1208,6 +1258,7 @@ JSON 출력 포맷:
 
     function openJsonModal() {
       document.getElementById('json-input').value = JSON.stringify(loadData(), null, 2);
+      updateBackupStatusUI();
       document.getElementById('json-modal').classList.remove('hidden');
     }
 
@@ -1215,58 +1266,111 @@ JSON 출력 포맷:
       document.getElementById('json-modal').classList.add('hidden');
     }
 
+    function markBackupCreated() {
+      localStorage.setItem(BACKUP_META_STORAGE, new Date().toISOString());
+      updateBackupStatusUI();
+    }
+
+    function updateBackupStatusUI() {
+      const lastBackupEl = document.getElementById('last-backup-text');
+      const undoBtn = document.getElementById('btn-undo-restore');
+      if (!lastBackupEl || !undoBtn) return;
+
+      const iso = localStorage.getItem(BACKUP_META_STORAGE);
+      if (iso) {
+        const d = new Date(iso);
+        lastBackupEl.innerText = Number.isNaN(d.getTime())
+          ? '백업 기록 있음'
+          : d.toLocaleString('ko-KR', { hour12: false });
+      } else {
+        lastBackupEl.innerText = '아직 백업 기록 없음';
+      }
+
+      if (localStorage.getItem(PRE_RESTORE_STORAGE)) {
+        undoBtn.classList.remove('hidden');
+      } else {
+        undoBtn.classList.add('hidden');
+      }
+    }
+
+    function snapshotBeforeRestore() {
+      const snapshot = {
+        createdAt: new Date().toISOString(),
+        data: loadData()
+      };
+      localStorage.setItem(PRE_RESTORE_STORAGE, JSON.stringify(snapshot));
+      updateBackupStatusUI();
+    }
+
+    function undoLastRestore() {
+      const raw = localStorage.getItem(PRE_RESTORE_STORAGE);
+      if (!raw) {
+        alert('되돌릴 복원 전 데이터가 없습니다.');
+        return;
+      }
+
+      try {
+        const snapshot = JSON.parse(raw);
+        if (!snapshot || !Array.isArray(snapshot.data)) throw new Error('snapshot invalid');
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot.data));
+        localStorage.removeItem(PRE_RESTORE_STORAGE);
+        document.getElementById('json-input').value = JSON.stringify(snapshot.data, null, 2);
+        updateBackupStatusUI();
+        render();
+        alert('복원하기 전 회선 데이터로 되돌렸습니다.');
+      } catch (err) {
+        localStorage.removeItem(PRE_RESTORE_STORAGE);
+        updateBackupStatusUI();
+        alert('되돌리기 데이터가 손상되어 복원하지 못했습니다.');
+      }
+    }
+
     async function sendEmailBackup() {
       const lines = loadData();
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
+      const dateStr = getLocalDateString();
       const dataStr = JSON.stringify(lines, null, 2);
       const fileName = `mvno_backup_${dateStr}.json`;
-
-      // Web Share API가 파일 공유를 지원하면 실제 .json 파일을 첨부한 상태로
-      // Android/iOS 공유창을 열어 메일 앱을 선택할 수 있게 한다.
       const backupFile = new File([dataStr], fileName, { type: 'application/json' });
-      const shareData = {
-        title: `[알뜰폰 회선 매니저] 백업 데이터 (${dateStr})`,
-        text: `알뜰폰 회선 매니저 백업 파일입니다.\n받는 사람: dong8279@naver.com`,
-        files: [backupFile]
-      };
 
+      /*
+        정적 웹페이지(mailto:)는 보안상 로컬에서 만든 파일을 특정 메일 작성창에
+        자동 첨부할 수 없다. 대신 Web Share API의 파일 공유 기능을 사용하면
+        Android/iOS에서 '파일이 이미 첨부된 상태'로 공유 대상을 고를 수 있다.
+        여기서 Gmail/삼성 이메일/네이버 메일 등 메일 앱을 고르면 첨부파일이 붙어 열린다.
+      */
       try {
         const canShareFiles = !!navigator.share &&
           (!navigator.canShare || navigator.canShare({ files: [backupFile] }));
 
         if (canShareFiles) {
-          await navigator.share(shareData);
+          await navigator.share({
+            title: `[알뜰폰 회선 매니저] 백업 (${dateStr})`,
+            text: `알뜰폰 회선 매니저 JSON 백업 파일입니다.\n보낼 주소: dong8279@naver.com`,
+            files: [backupFile]
+          });
+          markBackupCreated();
           return;
         }
       } catch (err) {
-        // 사용자가 공유창을 닫은 경우에는 추가 동작을 하지 않는다.
         if (err && err.name === 'AbortError') return;
-        console.warn('파일 공유를 사용할 수 없어 대체 방식으로 전환합니다.', err);
+        console.warn('파일 공유 실패, PC 대체 방식으로 전환:', err);
       }
 
-      /*
-        mailto: 링크는 브라우저 보안 정책상 생성한 파일을 자동 첨부할 수 없다.
-        공유 API가 없는 PC 브라우저에서는 JSON을 먼저 다운로드하고,
-        받는 사람/제목이 입력된 메일 작성창을 연다.
-      */
-      downloadBackupFile();
-
+      // PC/미지원 브라우저: 파일을 내려받고 받는 사람/제목이 입력된 메일 작성창을 연다.
+      downloadBackupFile(false);
       const subject = encodeURIComponent(`[알뜰폰 회선 매니저] 백업 데이터 (${dateStr})`);
       const body = encodeURIComponent(
-        `알뜰폰 회선 매니저 백업 파일(${fileName})을 첨부해 주세요.\n\n` +
-        `브라우저에서 JSON 파일을 먼저 다운로드했습니다.\n` +
-        `다운로드된 ${fileName} 파일을 이 메일에 첨부하면 됩니다.`
+        `알뜰폰 회선 매니저 백업 파일입니다.\n\n` +
+        `다운로드된 ${fileName} 파일을 이 메일에 첨부해 주세요.\n` +
+        `(PC 브라우저에서는 보안상 웹페이지가 메일 첨부파일을 직접 넣을 수 없습니다.)`
       );
-
-      alert('이 브라우저는 파일을 메일에 자동 첨부할 수 없어 JSON 파일을 먼저 저장합니다. 이어서 열리는 메일에 다운로드된 .json 파일을 첨부해 주세요.');
+      alert('이 브라우저에서는 메일 첨부 자동 입력이 지원되지 않습니다. JSON 파일을 저장한 뒤 메일 작성창을 엽니다.');
       window.location.href = `mailto:dong8279@naver.com?subject=${subject}&body=${body}`;
     }
 
-    function downloadBackupFile() {
+    function downloadBackupFile(showFeedback = true) {
       const lines = loadData();
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
+      const dateStr = getLocalDateString();
       const dataStr = JSON.stringify(lines, null, 2);
 
       const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1278,6 +1382,13 @@ JSON 출력 포맷:
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      markBackupCreated();
+
+      if (showFeedback) {
+        const lastBackupEl = document.getElementById('last-backup-text');
+        if (lastBackupEl) lastBackupEl.classList.add('text-emerald-700');
+        setTimeout(() => lastBackupEl?.classList.remove('text-emerald-700'), 900);
+      }
     }
 
     function restoreFromFile(event) {
@@ -1289,9 +1400,10 @@ JSON 출력 포맷:
         try {
           const parsed = JSON.parse(e.target.result);
           if (Array.isArray(parsed)) {
+            snapshotBeforeRestore();
             saveData(parsed);
-            closeJsonModal();
-            alert('백업 파일로부터 회선 데이터가 성공적으로 복원되었습니다.');
+            updateBackupStatusUI();
+            alert('백업 파일로부터 회선 데이터가 성공적으로 복원되었습니다. 필요하면 [복원 전으로 되돌리기]를 사용할 수 있습니다.');
           } else {
             alert('올바른 백업 파일 형식이 아닙니다.');
           }
@@ -1307,9 +1419,11 @@ JSON 출력 포맷:
       try {
         const parsed = JSON.parse(document.getElementById('json-input').value);
         if (Array.isArray(parsed)) {
+          snapshotBeforeRestore();
           saveData(parsed);
-          closeJsonModal();
-          alert('성공적으로 적용되었습니다.');
+          document.getElementById('json-input').value = JSON.stringify(parsed, null, 2);
+          updateBackupStatusUI();
+          alert('성공적으로 적용되었습니다. 필요하면 [복원 전으로 되돌리기]를 사용할 수 있습니다.');
         } else {
           alert('데이터 형식이 올바르지 않습니다.');
         }
