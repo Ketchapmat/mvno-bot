@@ -366,6 +366,7 @@
                 <option value="10">10개월</option>
                 <option value="12">12개월 (1년)</option>
                 <option value="24">24개월 (2년)</option>
+                <option value="lifetime">평생 (종료 없음)</option>
                 <option value="custom">직접입력</option>
               </select>
             </div>
@@ -618,6 +619,19 @@
     function calcEndDate() {
       const startDateStr = document.getElementById('form-start-date').value;
       const durationVal = document.getElementById('form-duration').value;
+      const endInput = document.getElementById('form-end-date');
+      const hint = document.getElementById('calc-hint');
+
+      if (durationVal === 'lifetime') {
+        endInput.value = '';
+        endInput.required = false;
+        endInput.disabled = true;
+        hint.innerText = '(평생 할인 — 종료일 없음)';
+        return;
+      }
+      endInput.required = true;
+      endInput.disabled = false;
+      if (durationVal === 'custom') hint.innerText = '';
 
       if (!startDateStr || durationVal === 'custom') return;
 
@@ -636,6 +650,28 @@
 
       document.getElementById('form-end-date').value = calculatedDate;
       document.getElementById('calc-hint').innerText = `(${months}개월 자동계산됨)`;
+    }
+
+    // 평생 할인 회선: 할인 기간이 '평생'이면 종료일이 없다
+    function isLifetime(line) {
+      return line && line.duration === 'lifetime';
+    }
+
+    // AI·기존 데이터의 할인 기간 값을 선택 목록 값으로 맞춘다
+    function normalizeDuration(v) {
+      const str = String(v ?? '').trim();
+      if (!str) return '';
+      if (/평생|lifetime|영구|무기한|종료\s*없/i.test(str)) return 'lifetime';
+      const n = parseInt(str.replace(/[^0-9]/g, ''), 10);
+      if (Number.isNaN(n)) return 'custom';
+      const sel = document.getElementById('form-duration');
+      const exists = sel && [...sel.options].some(o => o.value === String(n));
+      return exists ? String(n) : 'custom';
+    }
+
+    function durationLabel(line) {
+      if (isLifetime(line)) return '평생';
+      return line.duration && line.duration !== 'custom' ? line.duration + '개월' : '';
     }
 
     function getDiffDays(targetDateStr) {
@@ -677,6 +713,7 @@
       let count7 = 0;
 
       allLines.forEach(line => {
+        if (isLifetime(line) || !line.endDate) return;
         const dDay = getDiffDays(line.endDate);
         if (dDay <= 30 && dDay >= 0) count30++;
         if (dDay <= 7 && dDay >= 0) count7++;
@@ -728,11 +765,13 @@
       let filteredLines = allLines;
       if (currentFilter === '30') {
         filteredLines = allLines.filter(line => {
+          if (isLifetime(line) || !line.endDate) return false;
           const d = getDiffDays(line.endDate);
           return d <= 30 && d >= 0;
         });
       } else if (currentFilter === '7') {
         filteredLines = allLines.filter(line => {
+          if (isLifetime(line) || !line.endDate) return false;
           const d = getDiffDays(line.endDate);
           return d <= 7 && d >= 0;
         });
@@ -782,7 +821,9 @@
           let cardBorder = 'border-slate-200/90';
           let ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">D-${dDay}</span>`;
 
-          if (dDay < 0) {
+          if (isLifetime(line)) {
+            ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-700">평생 할인</span>`;
+          } else if (dDay < 0) {
             cardBorder = 'border-slate-300 bg-slate-50/70';
             ddayBadge = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 text-slate-600">만료됨</span>`;
           } else if (dDay <= 7) {
@@ -811,7 +852,7 @@
               <div class="text-right flex items-start gap-2">
                 <div>
                   ${ddayBadge}
-                  <p class="text-[10px] text-slate-400 mt-1 font-medium"><i class="fa-regular fa-calendar-xmark"></i> ${line.endDate} 마감</p>
+                  <p class="text-[10px] text-slate-400 mt-1 font-medium"><i class="fa-regular fa-calendar-xmark"></i> ${isLifetime(line) ? '종료일 없음' : line.endDate + ' 마감'}</p>
                 </div>
               </div>
             </div>
@@ -824,7 +865,7 @@
 
             <div class="space-y-1.5 text-xs text-slate-600">
               <div class="flex justify-between items-center">
-                <span class="text-slate-500">개통일자 (${line.duration ? line.duration + '개월' : ''})</span>
+                <span class="text-slate-500">개통일자 (${durationLabel(line)})</span>
                 <span class="font-semibold text-slate-800">${line.startDate} (${usageDay}일차)</span>
               </div>
               <div class="flex justify-between items-center">
@@ -972,6 +1013,9 @@
       const form = document.getElementById('line-form');
       form.reset();
       document.getElementById('calc-hint').innerText = '';
+      const endInputReset = document.getElementById('form-end-date');
+      endInputReset.disabled = false;
+      endInputReset.required = true;
 
       const lines = loadData();
       const slotSelect = document.getElementById('form-target-slot');
@@ -1033,8 +1077,9 @@
       if (data.call) document.getElementById('form-call').value = data.call;
       if (data.sms) document.getElementById('form-sms').value = data.sms;
       if (data.startDate) document.getElementById('form-start-date').value = data.startDate;
-      if (data.duration) document.getElementById('form-duration').value = data.duration;
-      if (data.endDate) document.getElementById('form-end-date').value = data.endDate;
+      const dur = normalizeDuration(data.duration);
+      if (dur) document.getElementById('form-duration').value = dur;
+      if (data.endDate && dur !== 'lifetime') document.getElementById('form-end-date').value = data.endDate;
       
       const feeInput = document.getElementById('form-fee');
       if (data.fee) {
@@ -1044,7 +1089,7 @@
         feeInput.value = '';
       }
 
-      if (data.startDate && data.duration) calcEndDate();
+      if (dur === 'lifetime' || (data.startDate && dur)) calcEndDate();
     }
 
     function onSlotChange() {
@@ -1099,7 +1144,7 @@
         sms: document.getElementById('form-sms').value,
         startDate: document.getElementById('form-start-date').value,
         duration: document.getElementById('form-duration').value,
-        endDate: document.getElementById('form-end-date').value,
+        endDate: document.getElementById('form-duration').value === 'lifetime' ? '' : document.getElementById('form-end-date').value,
         fee: finalFee
       };
 
@@ -1161,7 +1206,7 @@
 아래 문장에서 회선 정보를 추출하여 반드시 정해진 JSON 형식으로만 응답하세요.
 모르는 항목은 빈 문자열("")로 채우세요.
 날짜는 반드시 YYYY-MM-DD 형식이어야 합니다.
-할인 기간(개월) 숫자를 추출해주세요 (예: 6개월 할인이면 "6").
+할인 기간(개월) 숫자를 추출해주세요 (예: 6개월 할인이면 "6"). 평생 할인이면 "평생"으로 적으세요.
 
 [사용자 입력 내용]
 "${text}"
@@ -1177,8 +1222,8 @@ JSON 출력 포맷:
   "call": "통화량 (예: 무제한, 100분)",
   "sms": "문자량 (예: 100건, 무제한)",
   "startDate": "개통일 (YYYY-MM-DD)",
-  "duration": "할인개월수 (숫자만, 예: 6)",
-  "endDate": "할인종료일 (YYYY-MM-DD)",
+  "duration": "할인개월수 (숫자만, 예: 6). 평생 할인(기간 제한 없음)이면 \"평생\"",
+  "endDate": "할인종료일 (YYYY-MM-DD). 평생 할인이면 빈 문자열",
   "fee": "할인 요금 (예: 0원, 1,100원)"
 }
 `;
@@ -1220,7 +1265,7 @@ JSON 출력 포맷:
 아래 JSON 형식에 맞춰 필요한 정보를 추출해주세요.
 알 수 없는 항목은 빈 문자열로 두세요.
 날짜는 반드시 YYYY-MM-DD 형식이어야 합니다.
-할인 기간(개월) 숫자를 추출해주세요 (예: 6개월 할인이면 6).
+할인 기간(개월) 숫자를 추출해주세요 (예: 6개월 할인이면 6). 평생 할인이면 "평생"으로 적으세요.
 
 JSON 출력 포맷:
 {
@@ -1233,8 +1278,8 @@ JSON 출력 포맷:
   "call": "통화량 (예: 무제한)",
   "sms": "문자량 (예: 100건)",
   "startDate": "개통일 (YYYY-MM-DD)",
-  "duration": "할인개월수 (숫자만, 예: 6)",
-  "endDate": "할인종료일 (YYYY-MM-DD, 명시되어 있다면)",
+  "duration": "할인개월수 (숫자만, 예: 6). 요금제 이름이나 화면에 '평생'이 있으면 \"평생\"",
+  "endDate": "할인종료일 (YYYY-MM-DD, 명시되어 있다면). 평생 할인이면 빈 문자열",
   "fee": "할인 요금 (예: 0원 또는 1,100원)"
 }
 `;
