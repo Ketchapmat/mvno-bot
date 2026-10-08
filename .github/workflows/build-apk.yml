@@ -27,13 +27,13 @@ jobs:
       KS_PASS: mvnobot-android
       VERSION_CODE: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -66,7 +66,16 @@ jobs:
         working-directory: app-build/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          set +e
+          ./gradlew assembleRelease --no-daemon > gradle.log 2>&1
+          CODE=$?
+          set -e
+          tail -80 gradle.log
+          if [ $CODE -ne 0 ]; then
+            # 실패 원인을 Actions 요약(주석)에 남긴다
+            grep -A12 -E "What went wrong|^e: |error:" gradle.log | head -40 | sed 's/%/%25/g' | while IFS= read -r line; do echo "::error::$line"; done
+            exit $CODE
+          fi
 
       - name: 서명 (항상 같은 키로 서명해야 덮어쓰기 설치가 됨)
         working-directory: app-build/android
