@@ -1,0 +1,11 @@
+{
+  "name": "mvno-bot-android",
+  "private": true,
+  "description": "알뜰폰 회선 매니저 안드로이드 앱 빌드용 (GitHub Actions에서만 사용)",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/local-notifications": "latest"
+  }
+}

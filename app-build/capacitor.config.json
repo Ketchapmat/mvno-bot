@@ -1,0 +1,13 @@
+{
+  "appId": "com.ketchapmat.mvnobot",
+  "appName": "알뜰폰",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#4f46e5"
+    }
+  }
+}

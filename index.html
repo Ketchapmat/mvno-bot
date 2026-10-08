@@ -594,6 +594,7 @@
       // HA 연동 주소가 설정되어 있으면 변경된 전체 회선 목록을 비동기로 동기화한다.
       // 화면 저장은 HA 통신 성공 여부와 관계없이 즉시 완료된다.
       syncToHomeAssistant(false);
+      scheduleAppNotifications();
     }
 
     function parseDateParts(dateStr) {
@@ -879,7 +880,7 @@
                 <span class="text-slate-500">현재 할인 요금</span>
                 <div class="flex items-center gap-2">
                   <span class="font-extrabold text-indigo-600 text-sm">${line.fee}</span>
-                  <button onclick="addLineToCalendar(${line.id})" title="휴대폰 캘린더에 알림 추가" class="text-slate-400 hover:text-sky-600 bg-slate-100 hover:bg-sky-50 p-1.5 rounded-lg transition">
+                  <button onclick="${IS_APP ? 'showLineReminders' : 'addLineToCalendar'}(${line.id})" title="${IS_APP ? '이 회선의 폰 알림 보기' : '휴대폰 캘린더에 알림 추가'}" class="text-slate-400 hover:text-sky-600 bg-slate-100 hover:bg-sky-50 p-1.5 rounded-lg transition">
                     <i class="fa-regular fa-bell text-xs"></i>
                   </button>
                   <button onclick="editLine(${line.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 p-1.5 rounded-lg transition">
@@ -981,6 +982,124 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+
+
+    // ------------------------------------------------------------
+    // 안드로이드 앱(APK)으로 실행될 때만 동작하는 기능
+    // - 폰 자체 알림: 할인 종료 7일 전·전날·당일, 번호이동 가능일(개통 90일) 오전 9시
+    // - 웹(브라우저)에서는 아무 일도 하지 않는다
+    // ------------------------------------------------------------
+    const IS_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+    function getLocalNotifications() {
+      return IS_APP && window.Capacitor.Plugins ? window.Capacitor.Plugins.LocalNotifications : null;
+    }
+
+    function at9am(dateStr) {
+      const p = parseDateParts(dateStr);
+      return p ? new Date(p.year, p.month - 1, p.day, 9, 0, 0) : null;
+    }
+
+    function buildLineReminders(line) {
+      const now = new Date();
+      const title = `${line.name || '회선'}${line.phone ? ' (' + line.phone + ')' : ''}`;
+      const list = [];
+      if (!isLifetime(line) && line.endDate) {
+        [[7, '7일 뒤 할인이 끝납니다'], [1, '내일 할인이 끝납니다'], [0, '오늘 할인이 끝납니다']].forEach(([before, msg]) => {
+          const when = at9am(addDaysToDateStr(line.endDate, -before));
+          if (when && when > now) list.push({ when, title: `[알뜰폰] ${title}`, body: `${msg} (${line.endDate}). 요금제 변경·번호이동을 확인하세요.` });
+        });
+      }
+      if (line.startDate) {
+        const portDate = addDaysToDateStr(line.startDate, 90);
+        const when = at9am(portDate);
+        if (when && when > now) list.push({ when, title: `[알뜰폰] ${title}`, body: `오늘부터 번호이동이 가능합니다 (개통 90일, ${portDate}).` });
+      }
+      return list;
+    }
+
+    let notifyTimer = null;
+    let notifyChain = Promise.resolve();
+    function scheduleAppNotifications() {
+      if (!getLocalNotifications()) return;
+      clearTimeout(notifyTimer);
+      // 예약 작업이 겹치지 않도록 앞 작업이 끝난 뒤 순서대로 실행
+      notifyTimer = setTimeout(() => { notifyChain = notifyChain.then(rescheduleAllNotifications, rescheduleAllNotifications); }, 300);
+    }
+
+    async function rescheduleAllNotifications() {
+      const LN = getLocalNotifications();
+      if (!LN) return;
+      try {
+        let perm = await LN.checkPermissions();
+        if (perm.display !== 'granted') perm = await LN.requestPermissions();
+        if (perm.display !== 'granted') return;
+
+        try {
+          await LN.createChannel({ id: 'mvno', name: '알뜰폰 할인·번호이동 알림', importance: 4, visibility: 1 });
+        } catch (e) {}
+
+        const pending = await LN.getPending();
+        if (pending.notifications && pending.notifications.length) {
+          await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+        }
+
+        let nextId = 1;
+        const notifications = [];
+        loadData().forEach(line => {
+          buildLineReminders(line).forEach(r => {
+            notifications.push({
+              id: nextId++,
+              title: r.title,
+              body: r.body,
+              channelId: 'mvno',
+              schedule: { at: r.when, allowWhileIdle: true }
+            });
+          });
+        });
+        if (notifications.length) await LN.schedule({ notifications });
+      } catch (err) {
+        console.error('알림 예약 실패', err);
+      }
+    }
+
+    // 앱에서 🔔를 누르면 그 회선에 예약된 알림을 보여 준다
+    function showLineReminders(id) {
+      const line = loadData().find(l => l.id === id);
+      if (!line) return;
+      const list = buildLineReminders(line);
+      if (!list.length) {
+        alert('앞으로 예약할 알림이 없습니다. (평생 할인이거나 이미 지난 날짜예요)');
+        return;
+      }
+      const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 오전 9시`;
+      alert(`이 회선은 아래 날짜에 폰 알림이 뜹니다.\n\n${list.map(r => '- ' + fmt(r.when) + ' : ' + r.body).join('\n')}\n\n알림이 안 오면 폰 설정 > 애플리케이션 > 알뜰폰 > 알림을 켜 주세요.`);
+      scheduleAppNotifications();
+    }
+
+    // 앱에서는 파일 다운로드가 안 되므로 백업 내용을 클립보드에 복사한다
+    async function copyBackupToClipboard() {
+      const text = JSON.stringify(loadData(), null, 2);
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch (e) {
+        const ta = document.getElementById('json-input');
+        if (ta) {
+          ta.value = text;
+          ta.focus();
+          ta.select();
+          try { ok = document.execCommand('copy'); } catch (e2) {}
+        }
+      }
+      if (ok) {
+        markBackupCreated();
+        alert('백업 내용을 복사했습니다. 카카오톡 나에게 보내기나 메모에 붙여넣어 보관하세요.\n\n복원할 때는 이 창의 입력칸에 붙여넣고 [입력창의 데이터 적용하기]를 누르면 됩니다.');
+      } else {
+        alert('자동 복사가 안 됐습니다. 아래 입력칸의 내용을 길게 눌러 전체 선택 후 복사해 주세요.');
+      }
     }
 
     // ------------------------------------------------------------
@@ -1709,6 +1828,7 @@ JSON 출력 포맷:
     }
 
     async function sendEmailBackup() {
+      if (IS_APP) { copyBackupToClipboard(); return; }
       const lines = loadData();
       const dateStr = getLocalDateString();
       const dataStr = JSON.stringify(lines, null, 2);
@@ -1752,6 +1872,7 @@ JSON 출력 포맷:
     }
 
     function downloadBackupFile(showFeedback = true) {
+      if (IS_APP) { copyBackupToClipboard(); return; }
       const lines = loadData();
       const dateStr = getLocalDateString();
       const dataStr = JSON.stringify(lines, null, 2);
@@ -1818,6 +1939,7 @@ JSON 출력 포맷:
     updateApiButtonVisibility();
     updateHaStatusUI();
     render();
+    scheduleAppNotifications();
   </script>
 </body>
 </html>
