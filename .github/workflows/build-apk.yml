@@ -48,6 +48,8 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add android
           npx cap sync android
+          # Kotlin 컴파일 데몬이 러너에서 죽는 문제 방지 + 메모리 여유
+          printf '\norg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8\nkotlin.compiler.execution.strategy=in-process\n' >> android/gradle.properties
 
       - name: 앱 아이콘 만들기
         working-directory: app-build
@@ -73,7 +75,8 @@ jobs:
           tail -80 gradle.log
           if [ $CODE -ne 0 ]; then
             # 실패 원인을 Actions 요약(주석)에 남긴다
-            grep -A12 -E "What went wrong|^e: |error:" gradle.log | head -40 | sed 's/%/%25/g' | while IFS= read -r line; do echo "::error::$line"; done
+            MSG=$(grep -A15 -E "What went wrong|^e: .*(rror|nresolved)|error:" gradle.log | grep -v "daemon" | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=gradle::${MSG}"
             exit $CODE
           fi
 
