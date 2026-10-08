@@ -43,8 +43,7 @@ jobs:
         run: |
           mkdir -p www assets
           cp ../index.html ../manifest.json ../MVNO-Man.png www/
-          cp ../MVNO-Man.png assets/icon-only.png
-          cp ../MVNO-Man.png assets/icon-foreground.png
+          cp icon/icon-only.png icon/icon-foreground.png icon/icon-background.png assets/
           npm install --no-audit --no-fund
           npx cap add android
           npx cap sync android
@@ -54,7 +53,7 @@ jobs:
       - name: 앱 아이콘 만들기
         working-directory: app-build
         continue-on-error: true
-        run: npx -y @capacitor/assets generate --android --iconBackgroundColor '#4f46e5' --iconBackgroundColorDark '#4f46e5'
+        run: npx -y @capacitor/assets generate --android
 
       - name: 버전 번호 올리기 (업데이트 설치가 되도록)
         working-directory: app-build/android
