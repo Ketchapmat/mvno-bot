@@ -291,7 +291,7 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block font-medium text-slate-600 mb-1">명의자</label>
-            <input type="text" id="form-owner" required class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="우민준 또는 박소연">
+            <input type="text" id="form-owner" required class="w-full border border-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="명의자 이름">
           </div>
           <div>
             <label class="block font-medium text-slate-600 mb-1">구분</label>
@@ -585,7 +585,7 @@
 
     function loadData() {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : defaultData;
+      return stored ? JSON.parse(stored) : [];
     }
 
     function saveData(data) {
@@ -781,7 +781,7 @@
         container.innerHTML = `
           <div class="bg-white rounded-3xl p-8 text-center text-slate-400 border border-slate-100 shadow-sm space-y-2">
             <i class="fa-solid fa-shield-cat text-3xl text-slate-300"></i>
-            <p class="text-xs font-medium">해당하는 만료 예정 회선이 없습니다.</p>
+            <p class="text-xs font-medium">${allLines.length === 0 ? '아직 등록된 회선이 없습니다. 오른쪽 위 + 버튼으로 추가하세요.' : '해당하는 만료 예정 회선이 없습니다.'}</p>
           </div>
         `;
         return;
@@ -879,6 +879,9 @@
                 <span class="text-slate-500">현재 할인 요금</span>
                 <div class="flex items-center gap-2">
                   <span class="font-extrabold text-indigo-600 text-sm">${line.fee}</span>
+                  <button onclick="addLineToCalendar(${line.id})" title="휴대폰 캘린더에 알림 추가" class="text-slate-400 hover:text-sky-600 bg-slate-100 hover:bg-sky-50 p-1.5 rounded-lg transition">
+                    <i class="fa-regular fa-bell text-xs"></i>
+                  </button>
                   <button onclick="editLine(${line.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 p-1.5 rounded-lg transition">
                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                   </button>
@@ -894,6 +897,90 @@
       }
 
       initSortable();
+    }
+
+
+    // ------------------------------------------------------------
+    // 휴대폰 캘린더 알림 (.ics) — 서버 없이 폰 기본 캘린더가 알림을 띄운다
+    // 할인 종료일: 7일 전·1일 전 오전 9시 알림 / 번호이동 가능일(개통 90일): 당일 오전 9시 알림
+    // ------------------------------------------------------------
+    function icsEscape(str) {
+      return String(str ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+    }
+
+    function icsDate(dateStr) {
+      return String(dateStr).replace(/-/g, '');
+    }
+
+    function addDaysToDateStr(dateStr, days) {
+      const p = parseDateParts(dateStr);
+      if (!p) return '';
+      const d = new Date(Date.UTC(p.year, p.month - 1, p.day + days));
+      return formatDateParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+    }
+
+    function buildIcsEvent(uid, dateStr, summary, description, alarms) {
+      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      const lines = [
+        'BEGIN:VEVENT',
+        `UID:${uid}@mvno-bot`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${icsDate(dateStr)}`,
+        `DTEND;VALUE=DATE:${icsDate(addDaysToDateStr(dateStr, 1))}`,
+        `SUMMARY:${icsEscape(summary)}`,
+        `DESCRIPTION:${icsEscape(description)}`
+      ];
+      alarms.forEach(trigger => {
+        lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(summary)}`, `TRIGGER:${trigger}`, 'END:VALARM');
+      });
+      lines.push('END:VEVENT');
+      return lines;
+    }
+
+    function addLineToCalendar(id) {
+      const line = loadData().find(l => l.id === id);
+      if (!line) return;
+
+      const title = `${line.name || '회선'}${line.phone ? ' (' + line.phone + ')' : ''}`;
+      const info = `통신사: ${line.carrier || ''}\n요금제: ${line.data || ''} / ${line.call || ''} / ${line.sms || ''}\n현재 요금: ${line.fee || ''}\n개통일: ${line.startDate || ''}`;
+      const today = getLocalDateString();
+      let events = [];
+      const added = [];
+
+      if (!isLifetime(line) && line.endDate && line.endDate >= today) {
+        // 종일 일정 기준: -P6DT15H = 7일 전 오전 9시, -PT15H = 전날 오전 9시
+        events = events.concat(buildIcsEvent(`end-${line.id}`, line.endDate, `[알뜰폰] ${title} 할인 종료`, `할인이 끝나는 날입니다. 요금제 변경·번호이동을 확인하세요.\n${info}`, ['-P6DT15H', '-PT15H']));
+        added.push(`할인 종료일 ${line.endDate} (7일 전·전날 알림)`);
+      }
+
+      if (line.startDate) {
+        const portDate = addDaysToDateStr(line.startDate, 90);
+        if (portDate && portDate > today) {
+          // 당일 오전 9시
+          events = events.concat(buildIcsEvent(`port-${line.id}`, portDate, `[알뜰폰] ${title} 번호이동 가능`, `개통 90일이 지나 번호이동이 가능해지는 날입니다.\n${info}`, ['PT9H']));
+          added.push(`번호이동 가능일 ${portDate} (당일 알림)`);
+        }
+      }
+
+      if (events.length === 0) {
+        alert('앞으로 알릴 날짜가 없습니다. (평생 할인이거나 이미 지난 날짜예요)');
+        return;
+      }
+
+      const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//mvno-bot//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events, 'END:VCALENDAR'].join('\r\n');
+
+      if (!confirm(`휴대폰 캘린더에 아래 일정을 추가합니다.\n\n- ${added.join('\n- ')}\n\n열리는 화면에서 [추가]를 눌러 주세요.`)) return;
+
+      // 아이폰 Safari는 캘린더 파일(text/calendar)을 받으면 캘린더 추가 화면을 띄운다
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `알뜰폰_${(line.name || 'line').replace(/[\\/:*?"<>|]/g, '_')}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
 
     // ------------------------------------------------------------
