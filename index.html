@@ -1183,17 +1183,10 @@ JSON 출력 포맷:
 }
 `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const result = await callGemini(apiKey, {
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: { response_mime_type: "application/json" }
-          })
-        });
-
-        const result = await response.json();
-        if (result.error) throw new Error(result.error.message);
+          });
 
         const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
         openModal(null, parsedJson);
@@ -1246,10 +1239,7 @@ JSON 출력 포맷:
 }
 `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const result = await callGemini(apiKey, {
             contents: [{
               parts: [
                 { text: promptText },
@@ -1262,11 +1252,7 @@ JSON 출력 포맷:
               ]
             }],
             generationConfig: { response_mime_type: "application/json" }
-          })
-        });
-
-        const result = await response.json();
-        if (result.error) throw new Error(result.error.message);
+          });
 
         const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
         openModal(null, parsedJson);
@@ -1277,6 +1263,58 @@ JSON 출력 포맷:
         document.getElementById('loading-overlay').classList.add('hidden');
         event.target.value = '';
       }
+    }
+
+    // 사용할 Gemini 모델 순서. 앞 모델이 혼잡(503·429)하거나 없으면 다음 모델로 넘어간다.
+    const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-lite-latest'];
+
+    function isBusyError(status, msg) {
+      return status === 503 || status === 429 || status === 500 ||
+        /high demand|overloaded|UNAVAILABLE|RESOURCE_EXHAUSTED|try again later|quota/i.test(msg);
+    }
+
+    function isModelMissing(status, msg) {
+      return status === 404 || /not found|is not supported|NOT_FOUND/i.test(msg);
+    }
+
+    async function callGemini(apiKey, body) {
+      let lastErr = null;
+      for (const model of GEMINI_MODELS) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const msgEl = document.getElementById('loading-msg');
+          if (lastErr && msgEl && !msgEl.dataset.retry) {
+            msgEl.dataset.retry = '1';
+            msgEl.innerText += ' (서버 혼잡 — 다시 시도 중)';
+          }
+          let response, result;
+          try {
+            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+            result = await response.json();
+          } catch (netErr) {
+            lastErr = netErr;
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          if (!result.error) {
+            if (msgEl) delete msgEl.dataset.retry;
+            return result;
+          }
+          const msg = result.error.message || '';
+          const err = new Error(msg);
+          if (isApiKeyError(err)) throw err;            // 키 문제는 다른 모델로 넘어가도 소용없음
+          lastErr = err;
+          if (isModelMissing(response.status, msg)) break; // 이 모델은 없음 → 다음 모델
+          if (!isBusyError(response.status, msg)) throw err;
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      const msgEl = document.getElementById('loading-msg');
+      if (msgEl) delete msgEl.dataset.retry;
+      throw new Error('구글 Gemini 서버가 지금 혼잡합니다. 잠시 뒤 다시 시도해 주세요. (' + (lastErr ? lastErr.message : '') + ')');
     }
 
     function fileToBase64(file) {
