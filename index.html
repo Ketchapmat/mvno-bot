@@ -263,7 +263,7 @@
         </h3>
         <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <p class="text-[11px] text-slate-500">Google AI Studio에서 발급받은 무료 API Key를 입력하세요.</p>
+      <p class="text-[11px] text-slate-500">Google AI Studio에서 발급받은 무료 API Key를 입력하세요. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-indigo-600 underline font-semibold">키 확인·발급하기</a></p>
       <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
       <div class="flex gap-2 pt-1">
         <button onclick="saveApiKey()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">저장</button>
@@ -1199,7 +1199,7 @@ JSON 출력 포맷:
         openModal(null, parsedJson);
 
       } catch (err) {
-        alert('분석 중 오류가 발생했습니다: ' + err.message);
+        handleGeminiError(err);
       } finally {
         document.getElementById('loading-overlay').classList.add('hidden');
       }
@@ -1272,7 +1272,7 @@ JSON 출력 포맷:
         openModal(null, parsedJson);
 
       } catch (err) {
-        alert('분석 중 오류가 발생했습니다: ' + err.message);
+        handleGeminiError(err);
       } finally {
         document.getElementById('loading-overlay').classList.add('hidden');
         event.target.value = '';
@@ -1298,10 +1298,29 @@ JSON 출력 포맷:
     }
 
     function updateApiButtonVisibility() {
+      // 키가 있어도 버튼은 항상 보이게 둔다 (만료·삭제된 키를 바꿀 수 있어야 함)
       const btn = document.getElementById('api-key-btn');
       if (!btn) return;
       const hasKey = !!localStorage.getItem(API_KEY_STORAGE);
-      btn.classList.toggle('hidden', hasKey);
+      btn.classList.remove('hidden');
+      btn.title = hasKey ? 'Gemini API 키 변경' : 'Gemini API 키 등록';
+      const icon = btn.querySelector('i');
+      if (icon) icon.className = hasKey ? 'fa-solid fa-key text-emerald-300' : 'fa-solid fa-key text-amber-300';
+    }
+
+    // Gemini가 키를 거부한 오류인지 판별 (잘못된 키, 만료, 삭제, 권한 없음)
+    function isApiKeyError(err) {
+      const msg = String((err && err.message) || err || '');
+      return /API key|API_KEY|api_key|expired|PERMISSION_DENIED|UNAUTHENTICATED|permission/i.test(msg);
+    }
+
+    function handleGeminiError(err) {
+      if (isApiKeyError(err)) {
+        alert('저장된 Gemini API 키를 구글이 거부했습니다 (만료·삭제되었거나 잘못된 키).\n\nGoogle AI Studio에서 키를 복사해 다시 넣어 주세요.\n\n원문: ' + err.message);
+        openApiKeyModal();
+      } else {
+        alert('분석 중 오류가 발생했습니다: ' + err.message);
+      }
     }
 
     function saveApiKey() {
