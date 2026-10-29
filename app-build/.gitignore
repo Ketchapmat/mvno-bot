@@ -3,3 +3,6 @@ www/
 android/
 assets/
 package-lock.json
+# 서명 키는 절대 올리지 않는다 (GitHub Secrets에서 받아 씀)
+*.keystore
+*.jks
